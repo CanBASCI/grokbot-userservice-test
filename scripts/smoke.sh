@@ -7,15 +7,13 @@ PASSWORD="${SMOKE_PASSWORD:-Password123!}"
 
 echo "== gRPC must NOT be on host =="
 if command -v nc >/dev/null 2>&1; then
-  if nc -z -w 1 127.0.0.1 9091 2>/dev/null; then
-    echo "FAIL: host :9091 (signup gRPC) is reachable — must stay private"
-    exit 1
-  fi
-  if nc -z -w 1 127.0.0.1 9092 2>/dev/null; then
-    echo "FAIL: host :9092 (login gRPC) is reachable — must stay private"
-    exit 1
-  fi
-  echo "host :9091/:9092 closed (OK)"
+  for port in 9090 9091 9092; do
+    if nc -z -w 1 127.0.0.1 "${port}" 2>/dev/null; then
+      echo "FAIL: host :${port} is reachable — gRPC must stay private"
+      exit 1
+    fi
+  done
+  echo "host :9090/:9091/:9092 closed (OK)"
 else
   echo "nc not found; skip host gRPC bind check"
 fi

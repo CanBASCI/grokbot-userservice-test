@@ -5,11 +5,11 @@ Archon auth multi-module Maven project:
 | Module | Port | Responsibility |
 |--------|------|----------------|
 | `api-gateway` | **8080** HTTP | Public REST only (`POST /v1/auth/signup\|login\|refresh`); gRPC clients; problem+json; **no** business DB / rules |
-| `signup-service` | **9091** gRPC | `auth.signup.v1` Register + VerifyCredentials; users + BCrypt + Sentinel dummy bcrypt |
-| `login-service` | **9092** gRPC | `auth.login.v1` Login + Refresh; JWT + opaque refresh; verifies credentials via signup gRPC |
+| `signup-service` | **9090** gRPC | `auth.signup.v1` Register + VerifyCredentials; users + BCrypt + Sentinel dummy bcrypt |
+| `login-service` | **9090** gRPC | `auth.login.v1` Login + Refresh; JWT + opaque refresh; verifies credentials via signup gRPC |
 | `auth-proto` | — | Frozen protobuf/gRPC stubs |
 
-Public clients hit **`api-gateway:8080`**. gRPC (`9091`/`9092`) stays on the private compose network — **not** published to the host. nginx is **not** the API entry (see `edge/README.md`).
+Public clients hit **`api-gateway:8080`**. gRPC (`9090` in each app container; DNS `signup-service` / `login-service`) stays on the private compose network — **not** published to the host. nginx is **not** the API entry (see `edge/README.md`).
 
 ## Versions
 
@@ -23,8 +23,8 @@ Public clients hit **`api-gateway:8080`**. gRPC (`9091`/`9092`) stays on the pri
 ## Architecture
 
 ```
-Client --HTTP--> api-gateway:8080 --gRPC--> signup-service:9091
-                              \--gRPC--> login-service:9092 --gRPC VerifyCredentials--> signup:9091
+Client --HTTP--> api-gateway:8080 --gRPC--> signup-service:9090
+                              \--gRPC--> login-service:9090 --gRPC VerifyCredentials--> signup:9090
 ```
 
 Gateway **never** calls `VerifyCredentials`; only `login-service` does.
@@ -35,14 +35,14 @@ Gateway **never** calls `VerifyCredentials`; only `login-service` does.
 
 ```bash
 export SERVER_PORT=8080
-export SIGNUP_GRPC_TARGET=static://localhost:9091
-export LOGIN_GRPC_TARGET=static://localhost:9092
+export SIGNUP_GRPC_TARGET=static://localhost:9090
+export LOGIN_GRPC_TARGET=static://localhost:9090
 ```
 
 ### signup-service
 
 ```bash
-export GRPC_SERVER_PORT=9091
+export GRPC_SERVER_PORT=9090
 export SPRING_DATASOURCE_URL=jdbc:postgresql://localhost:5432/signup
 export SPRING_DATASOURCE_USERNAME=signup
 export SPRING_DATASOURCE_PASSWORD=signup
@@ -53,14 +53,14 @@ Use Spring profile `local` for laptop datasource defaults. `INTERNAL_API_KEY` is
 ### login-service
 
 ```bash
-export GRPC_SERVER_PORT=9092
+export GRPC_SERVER_PORT=9090
 export SPRING_DATASOURCE_URL=jdbc:postgresql://localhost:5432/login
 export SPRING_DATASOURCE_USERNAME=login
 export SPRING_DATASOURCE_PASSWORD=login
 export JWT_SECRET='replace-with-at-least-32-chars-secret'
 export JWT_ACCESS_TTL_SECONDS=900
 export REFRESH_TTL_SECONDS=2592000
-export SIGNUP_GRPC_TARGET=static://localhost:9091
+export SIGNUP_GRPC_TARGET=static://localhost:9090
 ```
 
 Boot **fails** if `JWT_SECRET` is missing/blank/`<32` chars. Prod datasource env-required (no weak defaults).
@@ -98,7 +98,7 @@ mvn -pl api-gateway spring-boot:run
 
 ## Docker Compose (Harbor)
 
-Publish **only** `api-gateway` on host `${HTTP_PORT:-8080}`. Private: `signup-service:9091`, `login-service:9092`, `signup-db`, `login-db`. Flyway on app boot. Named volumes kept on `down` (no wipe / no `system prune -a`).
+Publish **only** `api-gateway` on host `${HTTP_PORT:-8080}`. Private: `signup-service:9090`, `login-service:9090`, `signup-db`/`login-db` (`postgres:18`). Flyway on app boot. Named volumes kept on `down` (no wipe / no `system prune -a`).
 
 Requires **Maven ≥ 3.9.11** inside the image build (protobuf plugin).
 
@@ -111,7 +111,7 @@ make down
 make down-clean
 ```
 
-Smoke (`scripts/smoke.sh`): asserts host `:9091`/`:9092` closed, then gateway signup → login → refresh.
+Smoke (`scripts/smoke.sh`): asserts host `:9090`/`:9091`/`:9092` closed, then gateway signup → login → refresh.
 
 ## Push
 
