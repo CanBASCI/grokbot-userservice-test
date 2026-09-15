@@ -10,8 +10,15 @@ import com.example.signupservice.repository.UserRepositoryAdapter;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 
+import java.time.Clock;
+
 @Configuration
 public class DomainConfig {
+
+    @Bean
+    Clock clock() {
+        return Clock.systemUTC();
+    }
 
     @Bean
     PasswordHasher passwordHasher() {
@@ -24,8 +31,8 @@ public class DomainConfig {
     }
 
     @Bean
-    SignupService signupService(UserRepository userRepository, PasswordHasher passwordHasher) {
-        return new SignupService(userRepository, passwordHasher);
+    SignupService signupService(UserRepository userRepository, PasswordHasher passwordHasher, Clock clock) {
+        return new SignupService(userRepository, passwordHasher, clock);
     }
 
     @Bean

@@ -36,7 +36,7 @@ public final class HttpCredentialVerifierClient implements CredentialVerifierCli
             if (ex.getStatusCode().value() == 401) {
                 return Optional.empty();
             }
-            throw ex;
+            throw new IllegalStateException("credential verify failed", ex);
         }
     }
 

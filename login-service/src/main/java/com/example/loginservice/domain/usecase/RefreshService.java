@@ -16,18 +16,18 @@ public final class RefreshService {
 
     private final RefreshTokenRepository refreshTokenRepository;
     private final TokenIssuer tokenIssuer;
-    private final long refreshTtlSeconds;
+    private final LoginService loginService;
     private final Clock clock;
 
     public RefreshService(
             RefreshTokenRepository refreshTokenRepository,
             TokenIssuer tokenIssuer,
-            long refreshTtlSeconds,
+            LoginService loginService,
             Clock clock
     ) {
         this.refreshTokenRepository = Objects.requireNonNull(refreshTokenRepository);
         this.tokenIssuer = Objects.requireNonNull(tokenIssuer);
-        this.refreshTtlSeconds = refreshTtlSeconds;
+        this.loginService = Objects.requireNonNull(loginService);
         this.clock = Objects.requireNonNull(clock);
     }
 
@@ -56,21 +56,7 @@ public final class RefreshService {
 
         refreshTokenRepository.revoke(existing.getId());
 
-        String access = tokenIssuer.issueAccessToken(user);
-        String newRaw = tokenIssuer.generateOpaqueRefreshToken(user);
-        String newHash = tokenIssuer.hashRefreshToken(newRaw);
-
-        RefreshTokenRecord next = new RefreshTokenRecord(
-                tokenIssuer.newRefreshTokenId(),
-                user.getUserId(),
-                newHash,
-                now.plusSeconds(refreshTtlSeconds),
-                null,
-                now
-        );
-        refreshTokenRepository.save(next);
-
-        return new TokenPair(access, newRaw, "Bearer", tokenIssuer.accessTokenTtlSeconds());
+        return loginService.issueTokens(user);
     }
 
     private static DomainException invalidRefresh() {

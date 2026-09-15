@@ -33,10 +33,6 @@ public class DomainConfig {
                     "JWT_SECRET is required and must be at least 32 characters"
             );
         }
-        String baseUrl = properties.getSignup().getBaseUrl();
-        if (baseUrl == null || baseUrl.isBlank()) {
-            throw new IllegalStateException("SIGNUP_BASE_URL is required");
-        }
         return new JwtAccessTokenIssuer(
                 secret,
                 properties.getJwt().getAccessTtlSeconds(),
@@ -46,7 +42,11 @@ public class DomainConfig {
 
     @Bean
     RestClient signupRestClient(AppProperties properties, RestClient.Builder builder) {
-        return builder.baseUrl(properties.getSignup().getBaseUrl()).build();
+        String baseUrl = properties.getSignup().getBaseUrl();
+        if (baseUrl == null || baseUrl.isBlank()) {
+            throw new IllegalStateException("SIGNUP_BASE_URL is required");
+        }
+        return builder.baseUrl(baseUrl).build();
     }
 
     @Bean
@@ -83,13 +83,13 @@ public class DomainConfig {
     RefreshService refreshService(
             RefreshTokenRepository refreshTokenRepository,
             TokenIssuer tokenIssuer,
-            AppProperties properties,
+            LoginService loginService,
             Clock clock
     ) {
         return new RefreshService(
                 refreshTokenRepository,
                 tokenIssuer,
-                properties.getRefresh().getTtlSeconds(),
+                loginService,
                 clock
         );
     }

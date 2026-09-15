@@ -9,7 +9,9 @@ import com.example.signupservice.domain.usecase.SignupService;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
+import java.time.Clock;
 import java.time.Instant;
+import java.time.ZoneOffset;
 import java.util.HashMap;
 import java.util.Locale;
 import java.util.Map;
@@ -23,6 +25,8 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 
 class SignupServiceTest {
 
+    private static final Instant NOW = Instant.parse("2026-01-01T00:00:00Z");
+
     private FakeUserRepository userRepository;
     private FakePasswordHasher passwordHasher;
     private SignupService signupService;
@@ -31,7 +35,11 @@ class SignupServiceTest {
     void setUp() {
         userRepository = new FakeUserRepository();
         passwordHasher = new FakePasswordHasher();
-        signupService = new SignupService(userRepository, passwordHasher);
+        signupService = new SignupService(
+                userRepository,
+                passwordHasher,
+                Clock.fixed(NOW, ZoneOffset.UTC)
+        );
     }
 
     @Test
@@ -40,12 +48,13 @@ class SignupServiceTest {
         assertNotNull(user.getId());
         assertEquals("user@example.com", user.getEmail());
         assertEquals("hashed:password123", user.getPasswordHash());
+        assertEquals(NOW, user.getCreatedAt());
         assertTrue(userRepository.existsByEmail("user@example.com"));
     }
 
     @Test
     void signupEmailTaken() {
-        userRepository.save(new User(UUID.randomUUID(), "taken@example.com", "h", Instant.now()));
+        userRepository.save(new User(UUID.randomUUID(), "taken@example.com", "h", NOW));
         DomainException ex = assertThrows(
                 DomainException.class,
                 () -> signupService.signup("taken@example.com", "password123")

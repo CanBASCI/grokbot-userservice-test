@@ -15,6 +15,8 @@ import java.util.Objects;
 
 public final class LoginService {
 
+    public static final String TOKEN_TYPE = "Bearer";
+
     private final CredentialVerifierClient credentialVerifierClient;
     private final RefreshTokenRepository refreshTokenRepository;
     private final TokenIssuer tokenIssuer;
@@ -70,6 +72,6 @@ public final class LoginService {
         );
         refreshTokenRepository.save(record);
 
-        return new TokenPair(access, rawRefresh, "Bearer", tokenIssuer.accessTokenTtlSeconds());
+        return new TokenPair(access, rawRefresh, TOKEN_TYPE, tokenIssuer.accessTokenTtlSeconds());
     }
 }

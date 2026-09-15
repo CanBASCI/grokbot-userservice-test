@@ -15,13 +15,14 @@ import java.time.Instant;
 import java.util.Base64;
 import java.util.Date;
 import java.util.HexFormat;
+import java.util.Objects;
 import java.util.Optional;
 import java.util.UUID;
 
 public final class JwtAccessTokenIssuer implements TokenIssuer {
 
-    private static final Base64.Encoder B64 = Base64.getUrlEncoder().withoutPadding();
-    private static final Base64.Decoder B64D = Base64.getUrlDecoder();
+    private static final Base64.Encoder URL_ENCODER = Base64.getUrlEncoder().withoutPadding();
+    private static final Base64.Decoder URL_DECODER = Base64.getUrlDecoder();
 
     private final SecretKey secretKey;
     private final long accessTtlSeconds;
@@ -32,7 +33,7 @@ public final class JwtAccessTokenIssuer implements TokenIssuer {
         byte[] keyBytes = secret.getBytes(StandardCharsets.UTF_8);
         this.secretKey = Keys.hmacShaKeyFor(keyBytes);
         this.accessTtlSeconds = accessTtlSeconds;
-        this.clock = clock;
+        this.clock = Objects.requireNonNull(clock);
     }
 
     @Override
@@ -60,11 +61,11 @@ public final class JwtAccessTokenIssuer implements TokenIssuer {
         secureRandom.nextBytes(random);
         // Opaque non-JWT string: random + bound userId/email so refresh can rebuild
         // access claims without shared DB / user lookup. Only SHA-256 is persisted.
-        return B64.encodeToString(random)
+        return URL_ENCODER.encodeToString(random)
                 + "."
-                + B64.encodeToString(user.getUserId().toString().getBytes(StandardCharsets.UTF_8))
+                + URL_ENCODER.encodeToString(user.getUserId().toString().getBytes(StandardCharsets.UTF_8))
                 + "."
-                + B64.encodeToString(user.getEmail().getBytes(StandardCharsets.UTF_8));
+                + URL_ENCODER.encodeToString(user.getEmail().getBytes(StandardCharsets.UTF_8));
     }
 
     @Override
@@ -77,8 +78,8 @@ public final class JwtAccessTokenIssuer implements TokenIssuer {
             return Optional.empty();
         }
         try {
-            UUID userId = UUID.fromString(new String(B64D.decode(parts[1]), StandardCharsets.UTF_8));
-            String email = new String(B64D.decode(parts[2]), StandardCharsets.UTF_8);
+            UUID userId = UUID.fromString(new String(URL_DECODER.decode(parts[1]), StandardCharsets.UTF_8));
+            String email = new String(URL_DECODER.decode(parts[2]), StandardCharsets.UTF_8);
             if (email.isBlank()) {
                 return Optional.empty();
             }

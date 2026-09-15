@@ -14,6 +14,8 @@ import java.util.Optional;
 import java.util.UUID;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertInstanceOf;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 class HttpCredentialVerifierClientTest {
@@ -60,5 +62,18 @@ class HttpCredentialVerifierClientTest {
                         {"code":"INVALID_CREDENTIALS"}
                         """));
         assertTrue(client.verify("user@example.com", "wrong").isEmpty());
+    }
+
+    @Test
+    void verifyNon401WrapsAsIllegalState() {
+        server.enqueue(new MockResponse().setResponseCode(503)
+                .addHeader("Content-Type", "text/plain")
+                .setBody("unavailable"));
+        IllegalStateException ex = assertThrows(
+                IllegalStateException.class,
+                () -> client.verify("user@example.com", "password123")
+        );
+        assertEquals("credential verify failed", ex.getMessage());
+        assertInstanceOf(Exception.class, ex.getCause());
     }
 }

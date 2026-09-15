@@ -12,7 +12,7 @@
    - `infrastructure/` — `BCryptPasswordHasher` (yalnızca burada)
 
 2. **login-service** (port 8082)
-   - `cmd/` — `LoginServiceApplication`, `DomainConfig`, `AppProperties`, `BootEnvValidator` (JWT_SECRET ≥32, SIGNUP_BASE_URL zorunlu)
+   - `cmd/` — `LoginServiceApplication`, `DomainConfig`, `AppProperties` (JWT_SECRET ≥32 in tokenIssuer bean; SIGNUP_BASE_URL in signupRestClient bean)
    - `domain/` — `LoginService`, `RefreshService`, portlar (`RefreshTokenRepository`, `TokenIssuer`, `CredentialVerifierClient`)
    - `repository/` — `refresh_tokens` entity/adapter; Flyway `V1__refresh_tokens.sql` (signup DB’ye FK yok)
    - `transport/` — login + refresh controller, DTO, MapStruct, problem advice
@@ -81,4 +81,9 @@ Yerel ağaç: `/workspace/grokbot-auth`
 
 - Docker yok → Testcontainers PostgreSQL kullanılmadı; repository testleri Flyway+H2 (`db/migration-h2`)
 - Jackson 3 paket adları Boot 4 ile (`tools.jackson.*`) — çözüldü
-- `mvn -q test`: **31 test, hepsi yeşil** (signup 17 + login 14)
+- `mvn -q test`: **32 tests green** (signup 17 + login 15; +1 non-401 credential verify wrap)
+
+## I. Mason should-fix patches
+
+Applied review nits (no architecture changes): env validation only in DomainConfig beans (BootEnvValidator removed); RefreshService delegates to `LoginService.issueTokens` + shared `TOKEN_TYPE`; SignupService uses injected `Clock`; HttpCredentialVerifierClient wraps non-401 as `IllegalStateException`; JwtAccessTokenIssuer `URL_ENCODER`/`URL_DECODER` + null-safe clock.
+

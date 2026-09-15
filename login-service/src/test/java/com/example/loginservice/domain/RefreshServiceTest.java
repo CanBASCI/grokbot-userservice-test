@@ -5,8 +5,10 @@ import com.example.loginservice.domain.error.ErrorCode;
 import com.example.loginservice.domain.model.AuthenticatedUser;
 import com.example.loginservice.domain.model.RefreshTokenRecord;
 import com.example.loginservice.domain.model.TokenPair;
+import com.example.loginservice.domain.port.CredentialVerifierClient;
 import com.example.loginservice.domain.port.RefreshTokenRepository;
 import com.example.loginservice.domain.port.TokenIssuer;
+import com.example.loginservice.domain.usecase.LoginService;
 import com.example.loginservice.domain.usecase.RefreshService;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -42,11 +44,20 @@ class RefreshServiceTest {
     void setUp() {
         refreshRepo = new FakeRefreshRepo();
         tokenIssuer = new FakeTokenIssuer();
-        refreshService = new RefreshService(
+        Clock clock = Clock.fixed(NOW, ZoneOffset.UTC);
+        CredentialVerifierClient unusedVerifier = (email, password) -> Optional.empty();
+        LoginService loginService = new LoginService(
+                unusedVerifier,
                 refreshRepo,
                 tokenIssuer,
                 3600,
-                Clock.fixed(NOW, ZoneOffset.UTC)
+                clock
+        );
+        refreshService = new RefreshService(
+                refreshRepo,
+                tokenIssuer,
+                loginService,
+                clock
         );
         AuthenticatedUser user = new AuthenticatedUser(USER_ID, "user@example.com");
         rawToken = tokenIssuer.generateOpaqueRefreshToken(user);
@@ -67,6 +78,7 @@ class RefreshServiceTest {
         assertNotEquals(rawToken, pair.getRefreshToken());
         assertTrue(refreshRepo.byHash.values().stream().anyMatch(r -> r.getRevokedAt() != null));
         assertEquals(2, refreshRepo.byHash.size());
+        assertEquals(LoginService.TOKEN_TYPE, pair.getTokenType());
     }
 
     @Test

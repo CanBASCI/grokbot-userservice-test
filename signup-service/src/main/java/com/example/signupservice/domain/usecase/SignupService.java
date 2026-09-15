@@ -6,7 +6,7 @@ import com.example.signupservice.domain.model.User;
 import com.example.signupservice.domain.port.PasswordHasher;
 import com.example.signupservice.domain.port.UserRepository;
 
-import java.time.Instant;
+import java.time.Clock;
 import java.util.Locale;
 import java.util.Objects;
 import java.util.UUID;
@@ -23,10 +23,12 @@ public final class SignupService {
 
     private final UserRepository userRepository;
     private final PasswordHasher passwordHasher;
+    private final Clock clock;
 
-    public SignupService(UserRepository userRepository, PasswordHasher passwordHasher) {
+    public SignupService(UserRepository userRepository, PasswordHasher passwordHasher, Clock clock) {
         this.userRepository = Objects.requireNonNull(userRepository);
         this.passwordHasher = Objects.requireNonNull(passwordHasher);
+        this.clock = Objects.requireNonNull(clock);
     }
 
     public User signup(String email, String password) {
@@ -46,7 +48,7 @@ public final class SignupService {
                 UUID.randomUUID(),
                 normalizedEmail,
                 passwordHasher.hash(password),
-                Instant.now()
+                clock.instant()
         );
         return userRepository.save(user);
     }

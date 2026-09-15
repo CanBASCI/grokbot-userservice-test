@@ -58,7 +58,7 @@ class LoginServiceTest {
         TokenPair pair = loginService.login("user@example.com", "password123");
         assertEquals("access-token", pair.getAccessToken());
         assertNotNull(pair.getRefreshToken());
-        assertEquals("Bearer", pair.getTokenType());
+        assertEquals(LoginService.TOKEN_TYPE, pair.getTokenType());
         assertEquals(900, pair.getExpiresIn());
         assertEquals(1, refreshRepo.byHash.size());
     }
