@@ -16,9 +16,9 @@ spring:
     client:
       channel:
         signup:
-          target: ${SIGNUP_GRPC_TARGET:static://localhost:9091}
+          target: ${SIGNUP_GRPC_TARGET:static://localhost:9090}
         login:
-          target: ${LOGIN_GRPC_TARGET:static://localhost:9092}
+          target: ${LOGIN_GRPC_TARGET:static://localhost:9090}
 
 logging:
   level:

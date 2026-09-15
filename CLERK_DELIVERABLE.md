@@ -4,8 +4,8 @@
 
 1. **auth-proto** — Relay freeze `auth.signup.v1` / `auth.login.v1` (`SignupService`, `LoginService`); jar + stubs
 2. **api-gateway** (8080) — yalnızca public REST; gRPC client signup/login; record DTO + `@Valid`; problem+json; iş kuralı/DB yok; VerifyCredentials çağırmaz
-3. **signup-service** (gRPC 9091) — HTTP + InternalCredentialsController kaldırıldı; `SignupGrpcService`; Flyway users + BCrypt + dummy bcrypt; INTERNAL_API_KEY yok
-4. **login-service** (gRPC 9092) — HTTP AuthController kaldırıldı; `LoginGrpcService`; `GrpcCredentialVerifierClient`; JWT + opaque refresh + Sentinel claim/revoke-all
+3. **signup-service** (gRPC 9090) — HTTP + InternalCredentialsController kaldırıldı; `SignupGrpcService`; Flyway users + BCrypt + dummy bcrypt; INTERNAL_API_KEY yok
+4. **login-service** (gRPC 9090) — HTTP AuthController kaldırıldı; `LoginGrpcService`; `GrpcCredentialVerifierClient`; JWT + opaque refresh + Sentinel claim/revoke-all
 5. nginx edge API girişi deprecated; gRPC public değil (network isolation)
 
 ## B. Sürümler

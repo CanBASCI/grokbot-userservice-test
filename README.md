@@ -111,7 +111,7 @@ make down
 make down-clean
 ```
 
-Smoke (`scripts/smoke.sh`): asserts host `:9090`/`:9091`/`:9092` closed, then gateway signup → login → refresh.
+Smoke (`scripts/smoke.sh`): asserts host `:9090` closed, then gateway signup → login → refresh.
 
 ## Push
 
