@@ -13,9 +13,3 @@ spring:
   flyway:
     enabled: true
     locations: classpath:db/migration
-  jackson:
-    deserialization:
-      fail-on-unknown-properties: true
-
-app:
-  internal-api-key: test-internal-api-key

@@ -7,8 +7,6 @@ public class AppProperties {
 
     private final Jwt jwt = new Jwt();
     private final Refresh refresh = new Refresh();
-    private final Signup signup = new Signup();
-    private String internalApiKey = "";
 
     public Jwt getJwt() {
         return jwt;
@@ -16,18 +14,6 @@ public class AppProperties {
 
     public Refresh getRefresh() {
         return refresh;
-    }
-
-    public Signup getSignup() {
-        return signup;
-    }
-
-    public String getInternalApiKey() {
-        return internalApiKey;
-    }
-
-    public void setInternalApiKey(String internalApiKey) {
-        this.internalApiKey = internalApiKey;
     }
 
     public static class Jwt {
@@ -60,18 +46,6 @@ public class AppProperties {
 
         public void setTtlSeconds(long ttlSeconds) {
             this.ttlSeconds = ttlSeconds;
-        }
-    }
-
-    public static class Signup {
-        private String baseUrl = "";
-
-        public String getBaseUrl() {
-            return baseUrl;
-        }
-
-        public void setBaseUrl(String baseUrl) {
-            this.baseUrl = baseUrl;
         }
     }
 }
