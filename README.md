@@ -1,7 +1,7 @@
 # grokbot-auth
 
 Anvil/Relay auth multi-module Maven project: **signup-service** (8081) and **login-service** (8082).
-No edge/gateway Spring app. No shared database. Harbor Compose comes later.
+No Spring gateway app. No shared database. Thin **nginx edge** via Docker Compose (Harbor).
 
 ## Modules
 
@@ -82,6 +82,44 @@ mvn -pl login-service spring-boot:run
 - `POST /v1/auth/refresh` → 200 rotated tokens | 401 `INVALID_REFRESH_TOKEN`
 
 Errors: `application/problem+json` with `type`, `title`, `status`, `detail`, `code`.
+
+
+## Docker Compose (Harbor)
+
+Public edge only on **`:8080`**. App and DB ports are **not** published. Flyway runs on app boot. Named volumes kept on `down` (no wipe).
+
+### Security notes (Sentinel)
+
+- Edge returns **404** for `/internal/**` — never proxied to the host.
+- `login-service` calls signup verify over the private `auth_net` only: `http://signup-service:8081` (plain HTTP, internal-only). mTLS is optional later.
+- DB ports are not mapped to the host.
+- Secrets via `.env` (see `.env.example`). Do not bake secrets into images.
+
+### Bring-up
+
+```bash
+cd /workspace/grokbot-auth   # or your clone of CanBASCI/grokbot-userservice-test
+cp .env.example .env        # edit placeholders (JWT_SECRET >= 32 chars)
+make full-up
+# equivalent:
+# docker compose down --remove-orphans --rmi local && docker image prune -f
+# docker compose up -d --build
+# BASE_URL=http://127.0.0.1:8080 ./scripts/smoke.sh
+```
+
+### Smoke
+
+`scripts/smoke.sh` checks: edge denies `/internal`, then signup → login → refresh.
+
+### Tear down (keep DB volumes)
+
+```bash
+make down
+# or remove local app images too:
+make down-clean
+```
+
+Do **not** run `docker compose down -v` / volume prune / `docker system prune -a` unless a data wipe was explicitly ordered.
 
 ## Push yourself later (no tokens in this repo)
 

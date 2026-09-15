@@ -1,0 +1,133 @@
+# grokbot-auth local fleet — edge :8080 only. No DB host ports. No wipe.
+name: grokbot-auth
+
+networks:
+  auth_net:
+    driver: bridge
+
+volumes:
+  signup-db-data:
+  login-db-data:
+
+services:
+  signup-db:
+    image: postgres:16-alpine
+    container_name: signup-db
+    networks: [auth_net]
+    environment:
+      POSTGRES_DB: signup
+      POSTGRES_USER: ${SIGNUP_DB_USER:-signup}
+      POSTGRES_PASSWORD: ${SIGNUP_DB_PASSWORD:?set SIGNUP_DB_PASSWORD in .env}
+    volumes:
+      - signup-db-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $$POSTGRES_USER -d signup"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+      start_period: 10s
+    restart: "no"
+
+  login-db:
+    image: postgres:16-alpine
+    container_name: login-db
+    networks: [auth_net]
+    environment:
+      POSTGRES_DB: login
+      POSTGRES_USER: ${LOGIN_DB_USER:-login}
+      POSTGRES_PASSWORD: ${LOGIN_DB_PASSWORD:?set LOGIN_DB_PASSWORD in .env}
+    volumes:
+      - login-db-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $$POSTGRES_USER -d login"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+      start_period: 10s
+    restart: "no"
+
+  signup-service:
+    build:
+      context: .
+      dockerfile: docker/Dockerfile.signup
+    image: grokbot-auth-signup:local
+    container_name: signup-service
+    networks: [auth_net]
+    depends_on:
+      signup-db:
+        condition: service_healthy
+    environment:
+      SERVER_PORT: "8081"
+      SPRING_DATASOURCE_URL: jdbc:postgresql://signup-db:5432/signup
+      SPRING_DATASOURCE_USERNAME: ${SIGNUP_DB_USER:-signup}
+      SPRING_DATASOURCE_PASSWORD: ${SIGNUP_DB_PASSWORD:?set SIGNUP_DB_PASSWORD in .env}
+      # Reserved for Sentinel/Anvil header checks — not enforced by app yet.
+      INTERNAL_API_KEY: ${INTERNAL_API_KEY:-}
+    # App ports NOT published — only compose network (login + edge).
+    healthcheck:
+      test:
+        [
+          "CMD-SHELL",
+          "code=$$(curl -s -o /dev/null -w '%{http_code}' http://127.0.0.1:8081/v1/auth/signup); echo $$code | grep -Eq '405|415|400'",
+        ]
+      interval: 5s
+      timeout: 5s
+      retries: 30
+      start_period: 90s
+    restart: "no"
+
+  login-service:
+    build:
+      context: .
+      dockerfile: docker/Dockerfile.login
+    image: grokbot-auth-login:local
+    container_name: login-service
+    networks: [auth_net]
+    depends_on:
+      login-db:
+        condition: service_healthy
+      signup-service:
+        condition: service_healthy
+    environment:
+      SERVER_PORT: "8082"
+      SPRING_DATASOURCE_URL: jdbc:postgresql://login-db:5432/login
+      SPRING_DATASOURCE_USERNAME: ${LOGIN_DB_USER:-login}
+      SPRING_DATASOURCE_PASSWORD: ${LOGIN_DB_PASSWORD:?set LOGIN_DB_PASSWORD in .env}
+      JWT_SECRET: ${JWT_SECRET:?set JWT_SECRET (>=32 chars) in .env}
+      JWT_ACCESS_TTL_SECONDS: ${JWT_ACCESS_TTL_SECONDS:-900}
+      REFRESH_TTL_SECONDS: ${REFRESH_TTL_SECONDS:-2592000}
+      # Internal-only plain HTTP on auth_net. mTLS optional later (Sentinel).
+      SIGNUP_BASE_URL: http://signup-service:8081
+      INTERNAL_API_KEY: ${INTERNAL_API_KEY:-}
+    healthcheck:
+      test:
+        [
+          "CMD-SHELL",
+          "code=$$(curl -s -o /dev/null -w '%{http_code}' http://127.0.0.1:8082/v1/auth/login); echo $$code | grep -Eq '405|415|400'",
+        ]
+      interval: 5s
+      timeout: 5s
+      retries: 30
+      start_period: 90s
+    restart: "no"
+
+  edge:
+    image: nginx:1.27-alpine
+    container_name: auth-edge
+    networks: [auth_net]
+    depends_on:
+      signup-service:
+        condition: service_healthy
+      login-service:
+        condition: service_healthy
+    ports:
+      - "${EDGE_PORT:-8080}:8080"
+    volumes:
+      - ./edge/nginx.conf:/etc/nginx/nginx.conf:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pidof nginx || exit 1"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+      start_period: 5s
+    restart: "no"
