@@ -43,3 +43,8 @@ cd /workspace/grokbot-auth && mvn -q test
 ## G. Git
 
 Push `main` → `CanBASCI/grokbot-userservice-test` SHA **31a1debe82937b7d00001b2a0064f35a3c22f040**. Chat'e secret yok.
+
+
+## Port law (9090)
+
+signup/login listen `${GRPC_PORT:${GRPC_SERVER_PORT:9090}}`. Gateway/login clients: Compose `static://signup-service:9090` / `static://login-service:9090`; local yml defaults `localhost:9090`. Host publish: only gateway 8080.

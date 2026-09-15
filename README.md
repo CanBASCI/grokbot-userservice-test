@@ -9,7 +9,7 @@ Archon auth multi-module Maven project:
 | `login-service` | **9090** gRPC | `auth.login.v1` Login + Refresh; JWT + opaque refresh; verifies credentials via signup gRPC |
 | `auth-proto` | — | Frozen protobuf/gRPC stubs |
 
-Public clients hit **`api-gateway:8080`**. gRPC (`9090` in each app container; DNS `signup-service` / `login-service`) stays on the private compose network — **not** published to the host. nginx is **not** the API entry (see `edge/README.md`).
+Public clients hit **`api-gateway:8080`**. In Compose, gateway/login use `static://signup-service:9090` and `static://login-service:9090` (not published to host). Local laptop defaults in `application.yml` use `static://localhost:9090` for single-process debugging. gRPC (`9090` in each app container; DNS `signup-service` / `login-service`) stays on the private compose network — **not** published to the host. nginx is **not** the API entry (see `edge/README.md`).
 
 ## Versions
 
@@ -42,7 +42,7 @@ export LOGIN_GRPC_TARGET=static://localhost:9090
 ### signup-service
 
 ```bash
-export GRPC_SERVER_PORT=9090
+export GRPC_SERVER_PORT=9090   # or GRPC_PORT=9090 (same default)
 export SPRING_DATASOURCE_URL=jdbc:postgresql://localhost:5432/signup
 export SPRING_DATASOURCE_USERNAME=signup
 export SPRING_DATASOURCE_PASSWORD=signup
@@ -53,7 +53,7 @@ Use Spring profile `local` for laptop datasource defaults. `INTERNAL_API_KEY` is
 ### login-service
 
 ```bash
-export GRPC_SERVER_PORT=9090
+export GRPC_SERVER_PORT=9090   # or GRPC_PORT=9090 (same default)
 export SPRING_DATASOURCE_URL=jdbc:postgresql://localhost:5432/login
 export SPRING_DATASOURCE_USERNAME=login
 export SPRING_DATASOURCE_PASSWORD=login
