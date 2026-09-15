@@ -32,7 +32,10 @@ export SERVER_PORT=8081
 export SPRING_DATASOURCE_URL=jdbc:postgresql://localhost:5432/signup
 export SPRING_DATASOURCE_USERNAME=signup
 export SPRING_DATASOURCE_PASSWORD=signup
+export INTERNAL_API_KEY='shared-internal-secret'
 ```
+
+Use Spring profile `local` for laptop datasource defaults (`application-local.yml`). Without `local`, `SPRING_DATASOURCE_*` must be set (no weak prod defaults).
 
 ### login-service
 
@@ -45,9 +48,14 @@ export JWT_SECRET='replace-with-at-least-32-chars-secret'
 export JWT_ACCESS_TTL_SECONDS=900          # optional, default 900
 export REFRESH_TTL_SECONDS=2592000         # optional, default 30 days
 export SIGNUP_BASE_URL=http://localhost:8081
+export INTERNAL_API_KEY='shared-internal-secret'
 ```
 
-Boot **fails** if `JWT_SECRET` is missing/blank/`<32` chars or if `SIGNUP_BASE_URL` is blank.
+Boot **fails** if `JWT_SECRET` is missing/blank/`<32` chars, if `SIGNUP_BASE_URL` is blank, or if `INTERNAL_API_KEY` is blank (both services).
+
+Internal verify requires header `X-Internal-Api-Key` matching `INTERNAL_API_KEY`.
+
+**Residual:** signup returns `EMAIL_TAKEN` (409) — intentional product signal; rate limiting is Harbor's job.
 
 ## Run tests
 

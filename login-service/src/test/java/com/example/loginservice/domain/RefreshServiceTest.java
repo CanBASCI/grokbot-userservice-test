@@ -59,11 +59,11 @@ class RefreshServiceTest {
                 loginService,
                 clock
         );
-        AuthenticatedUser user = new AuthenticatedUser(USER_ID, "user@example.com");
-        rawToken = tokenIssuer.generateOpaqueRefreshToken(user);
+        rawToken = tokenIssuer.generateOpaqueRefreshToken();
         refreshRepo.save(new RefreshTokenRecord(
                 UUID.randomUUID(),
                 USER_ID,
+                "user@example.com",
                 tokenIssuer.hashRefreshToken(rawToken),
                 NOW.plusSeconds(3600),
                 null,
@@ -85,21 +85,27 @@ class RefreshServiceTest {
     void refreshInvalidUnknown() {
         DomainException ex = assertThrows(
                 DomainException.class,
-                () -> refreshService.refresh("unknown.token.value")
+                () -> refreshService.refresh("unknown-token-value")
         );
         assertEquals(ErrorCode.INVALID_REFRESH_TOKEN, ex.getCode());
         assertEquals(401, ex.getStatus());
     }
 
     @Test
-    void refreshRevokedRejected() {
+    void refreshReuseRevokesAllForUser() {
         refreshService.refresh(rawToken);
+        assertEquals(0, refreshRepo.revokeAllCalls);
         DomainException ex = assertThrows(DomainException.class, () -> refreshService.refresh(rawToken));
         assertEquals(ErrorCode.INVALID_REFRESH_TOKEN, ex.getCode());
+        assertTrue(refreshRepo.revokeAllCalls >= 1);
+        assertTrue(refreshRepo.byHash.values().stream()
+                .filter(r -> r.getUserId().equals(USER_ID))
+                .allMatch(RefreshTokenRecord::isRevoked));
     }
 
     private static final class FakeRefreshRepo implements RefreshTokenRepository {
         final Map<String, RefreshTokenRecord> byHash = new HashMap<>();
+        int revokeAllCalls;
 
         @Override
         public RefreshTokenRecord save(RefreshTokenRecord record) {
@@ -110,6 +116,24 @@ class RefreshServiceTest {
         @Override
         public Optional<RefreshTokenRecord> findByTokenHash(String tokenHash) {
             return Optional.ofNullable(byHash.get(tokenHash));
+        }
+
+        @Override
+        public boolean claimActive(String tokenHash, Instant now) {
+            RefreshTokenRecord existing = byHash.get(tokenHash);
+            if (existing == null || !existing.isActive(now)) {
+                return false;
+            }
+            byHash.put(tokenHash, existing.revoked(now));
+            return true;
+        }
+
+        @Override
+        public void revokeAllForUser(UUID userId) {
+            revokeAllCalls++;
+            byHash.replaceAll((k, v) -> v.getUserId().equals(userId) && v.getRevokedAt() == null
+                    ? v.revoked(NOW)
+                    : v);
         }
 
         @Override
@@ -132,17 +156,8 @@ class RefreshServiceTest {
         }
 
         @Override
-        public String generateOpaqueRefreshToken(AuthenticatedUser user) {
-            return "opaque-" + counter.incrementAndGet() + "." + user.getUserId() + "." + user.getEmail();
-        }
-
-        @Override
-        public Optional<AuthenticatedUser> parseRefreshToken(String rawRefreshToken) {
-            String[] p = rawRefreshToken.split("\\.", 3);
-            if (p.length != 3) {
-                return Optional.empty();
-            }
-            return Optional.of(new AuthenticatedUser(UUID.fromString(p[1]), p[2]));
+        public String generateOpaqueRefreshToken() {
+            return "opaque-" + counter.incrementAndGet();
         }
 
         @Override

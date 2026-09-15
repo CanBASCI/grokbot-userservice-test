@@ -59,12 +59,13 @@ public final class LoginService {
     public TokenPair issueTokens(AuthenticatedUser user) {
         Instant now = clock.instant();
         String access = tokenIssuer.issueAccessToken(user);
-        String rawRefresh = tokenIssuer.generateOpaqueRefreshToken(user);
+        String rawRefresh = tokenIssuer.generateOpaqueRefreshToken();
         String hash = tokenIssuer.hashRefreshToken(rawRefresh);
 
         RefreshTokenRecord record = new RefreshTokenRecord(
                 tokenIssuer.newRefreshTokenId(),
                 user.getUserId(),
+                user.getEmail(),
                 hash,
                 now.plusSeconds(refreshTtlSeconds),
                 null,

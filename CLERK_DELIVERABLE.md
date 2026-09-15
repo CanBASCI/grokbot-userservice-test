@@ -87,3 +87,7 @@ Yerel ağaç: `/workspace/grokbot-auth`
 
 Applied review nits (no architecture changes): env validation only in DomainConfig beans (BootEnvValidator removed); RefreshService delegates to `LoginService.issueTokens` + shared `TOKEN_TYPE`; SignupService uses injected `Clock`; HttpCredentialVerifierClient wraps non-401 as `IllegalStateException`; JwtAccessTokenIssuer `URL_ENCODER`/`URL_DECODER` + null-safe clock.
 
+
+## Sentinel security (Anvil)
+- Refresh reuse → revoke-all; atomic claimActive; opaque refresh (no email in token); email on refresh_tokens V2
+- Dummy BCrypt on missing user; INTERNAL_API_KEY + X-Internal-Api-Key; prod datasource env-required (local profile defaults)

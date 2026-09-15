@@ -30,8 +30,15 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 @WebMvcTest(controllers = {SignupController.class, InternalCredentialsController.class})
-@Import({SignupController.class, InternalCredentialsController.class, ProblemDetailExceptionHandler.class, SignupControllerWebMvcTest.TestBeans.class})
+@Import({
+        SignupController.class,
+        InternalCredentialsController.class,
+        ProblemDetailExceptionHandler.class,
+        SignupControllerWebMvcTest.TestBeans.class
+})
 class SignupControllerWebMvcTest {
+
+    private static final String API_KEY = "test-internal-api-key";
 
     @Autowired
     private MockMvc mockMvc;
@@ -107,6 +114,7 @@ class SignupControllerWebMvcTest {
                 .thenReturn(new User(id, "user@example.com", "hash", Instant.now()));
 
         mockMvc.perform(post("/internal/v1/credentials/verify")
+                        .header(InternalCredentialsController.INTERNAL_API_KEY_HEADER, API_KEY)
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("""
                                 {"email":"user@example.com","password":"password123"}
@@ -122,6 +130,7 @@ class SignupControllerWebMvcTest {
                 .thenThrow(new DomainException(ErrorCode.INVALID_CREDENTIALS, 401, "Unauthorized", "Invalid credentials"));
 
         mockMvc.perform(post("/internal/v1/credentials/verify")
+                        .header(InternalCredentialsController.INTERNAL_API_KEY_HEADER, API_KEY)
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("""
                                 {"email":"user@example.com","password":"wrong"}
@@ -130,8 +139,24 @@ class SignupControllerWebMvcTest {
                 .andExpect(jsonPath("$.code").value("INVALID_CREDENTIALS"));
     }
 
-    @org.springframework.boot.test.context.TestConfiguration
+    @Test
+    void verifyMissingApiKeyUnauthorized() throws Exception {
+        mockMvc.perform(post("/internal/v1/credentials/verify")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {"email":"user@example.com","password":"password123"}
+                                """))
+                .andExpect(status().isUnauthorized())
+                .andExpect(jsonPath("$.code").value("UNAUTHORIZED"));
+    }
+
+    @TestConfiguration
     static class TestBeans {
+        @Bean(name = "internalApiKey")
+        String internalApiKey() {
+            return API_KEY;
+        }
+
         @Bean
         SignupTransportMapper signupTransportMapper() {
             return new SignupTransportMapper() {

@@ -46,12 +46,16 @@ public class DomainConfig {
         if (baseUrl == null || baseUrl.isBlank()) {
             throw new IllegalStateException("SIGNUP_BASE_URL is required");
         }
+        String apiKey = properties.getInternalApiKey();
+        if (apiKey == null || apiKey.isBlank()) {
+            throw new IllegalStateException("INTERNAL_API_KEY is required");
+        }
         return builder.baseUrl(baseUrl).build();
     }
 
     @Bean
-    CredentialVerifierClient credentialVerifierClient(RestClient signupRestClient) {
-        return new HttpCredentialVerifierClient(signupRestClient);
+    CredentialVerifierClient credentialVerifierClient(RestClient signupRestClient, AppProperties properties) {
+        return new HttpCredentialVerifierClient(signupRestClient, properties.getInternalApiKey());
     }
 
     @Bean

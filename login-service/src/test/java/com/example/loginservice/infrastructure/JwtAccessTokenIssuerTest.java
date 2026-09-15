@@ -15,6 +15,7 @@ import java.util.Date;
 import java.util.UUID;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
@@ -23,7 +24,7 @@ class JwtAccessTokenIssuerTest {
     private static final String SECRET = "0123456789abcdef0123456789abcdef";
 
     @Test
-    void issuesAccessClaimsOnly() {
+    void issuesAccessClaimsOnlyAndOpaqueRefreshHasNoIdentity() {
         Instant now = Instant.parse("2026-01-01T00:00:00Z");
         Clock clock = Clock.fixed(now, ZoneOffset.UTC);
         JwtAccessTokenIssuer issuer = new JwtAccessTokenIssuer(SECRET, 900, clock);
@@ -42,13 +43,13 @@ class JwtAccessTokenIssuerTest {
         assertEquals(userId.toString(), claims.getSubject());
         assertEquals("user@example.com", claims.get("email", String.class));
         assertEquals("access", claims.get("typ", String.class));
-        assertEquals(now.getEpochSecond(), claims.getIssuedAt().toInstant().getEpochSecond());
-        assertEquals(now.plusSeconds(900).getEpochSecond(), claims.getExpiration().toInstant().getEpochSecond());
 
-        String refresh = issuer.generateOpaqueRefreshToken(user);
-        assertEquals(3, refresh.split("\\.").length);
+        String refresh = issuer.generateOpaqueRefreshToken();
+        assertFalse(refresh.contains("@"));
+        assertFalse(refresh.contains(userId.toString()));
+        assertFalse(refresh.contains("."));
         assertNotEquals(jwt, refresh);
-        assertTrue(issuer.parseRefreshToken(refresh).isPresent());
         assertEquals(64, issuer.hashRefreshToken(refresh).length());
+        assertTrue(refresh.length() >= 40);
     }
 }

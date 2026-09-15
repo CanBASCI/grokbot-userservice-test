@@ -8,8 +8,16 @@ import com.example.signupservice.domain.port.UserRepository;
 
 import java.util.Locale;
 import java.util.Objects;
+import java.util.Optional;
 
 public final class VerifyCredentialsService {
+
+    /**
+     * Precomputed BCrypt hash used only so missing-user paths still pay a matches() cost.
+     * Not a real account password.
+     */
+    static final String DUMMY_BCRYPT_HASH =
+            "$2a$10$dXJ3SW6G7P50lGmMkkmwe.20cQQubK3.HZWzG3YB1tlRy.fqvM/BG";
 
     private final UserRepository userRepository;
     private final PasswordHasher passwordHasher;
@@ -24,12 +32,13 @@ public final class VerifyCredentialsService {
             throw invalidCredentials();
         }
         String normalized = email.trim().toLowerCase(Locale.ROOT);
-        User user = userRepository.findByEmail(normalized)
-                .orElseThrow(VerifyCredentialsService::invalidCredentials);
-        if (!passwordHasher.matches(password, user.getPasswordHash())) {
+        Optional<User> found = userRepository.findByEmail(normalized);
+        String hashToCheck = found.map(User::getPasswordHash).orElse(DUMMY_BCRYPT_HASH);
+        boolean matches = passwordHasher.matches(password, hashToCheck);
+        if (found.isEmpty() || !matches) {
             throw invalidCredentials();
         }
-        return user;
+        return found.get();
     }
 
     private static DomainException invalidCredentials() {

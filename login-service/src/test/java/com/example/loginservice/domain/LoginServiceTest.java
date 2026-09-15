@@ -61,6 +61,7 @@ class LoginServiceTest {
         assertEquals(LoginService.TOKEN_TYPE, pair.getTokenType());
         assertEquals(900, pair.getExpiresIn());
         assertEquals(1, refreshRepo.byHash.size());
+        assertEquals("user@example.com", refreshRepo.byHash.values().iterator().next().getEmail());
     }
 
     @Test
@@ -103,6 +104,15 @@ class LoginServiceTest {
         }
 
         @Override
+        public boolean claimActive(String tokenHash, Instant now) {
+            return false;
+        }
+
+        @Override
+        public void revokeAllForUser(UUID userId) {
+        }
+
+        @Override
         public void revoke(UUID id) {
             byHash.values().stream()
                     .filter(r -> r.getId().equals(id))
@@ -123,14 +133,8 @@ class LoginServiceTest {
         }
 
         @Override
-        public String generateOpaqueRefreshToken(AuthenticatedUser user) {
-            return "opaque." + user.getUserId() + "." + user.getEmail();
-        }
-
-        @Override
-        public Optional<AuthenticatedUser> parseRefreshToken(String rawRefreshToken) {
-            String[] p = rawRefreshToken.split("\\.", 3);
-            return Optional.of(new AuthenticatedUser(UUID.fromString(p[1]), p[2]));
+        public String generateOpaqueRefreshToken() {
+            return "opaque-random-only";
         }
 
         @Override

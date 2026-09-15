@@ -7,15 +7,20 @@ import org.springframework.web.client.RestClient;
 import org.springframework.web.client.RestClientResponseException;
 
 import java.util.Map;
+import java.util.Objects;
 import java.util.Optional;
 import java.util.UUID;
 
 public final class HttpCredentialVerifierClient implements CredentialVerifierClient {
 
-    private final RestClient restClient;
+    public static final String INTERNAL_API_KEY_HEADER = "X-Internal-Api-Key";
 
-    public HttpCredentialVerifierClient(RestClient restClient) {
-        this.restClient = restClient;
+    private final RestClient restClient;
+    private final String internalApiKey;
+
+    public HttpCredentialVerifierClient(RestClient restClient, String internalApiKey) {
+        this.restClient = Objects.requireNonNull(restClient);
+        this.internalApiKey = Objects.requireNonNull(internalApiKey);
     }
 
     @Override
@@ -25,6 +30,7 @@ public final class HttpCredentialVerifierClient implements CredentialVerifierCli
                     .uri("/internal/v1/credentials/verify")
                     .contentType(MediaType.APPLICATION_JSON)
                     .accept(MediaType.APPLICATION_JSON)
+                    .header(INTERNAL_API_KEY_HEADER, internalApiKey)
                     .body(Map.of("email", email, "password", password))
                     .retrieve()
                     .body(VerifyResponse.class);

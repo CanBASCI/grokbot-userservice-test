@@ -16,3 +16,6 @@ spring:
   jackson:
     deserialization:
       fail-on-unknown-properties: true
+
+app:
+  internal-api-key: test-internal-api-key

@@ -14,19 +14,23 @@ import java.util.HashMap;
 import java.util.Map;
 import java.util.Optional;
 import java.util.UUID;
+import java.util.concurrent.atomic.AtomicInteger;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 class VerifyCredentialsServiceTest {
 
     private FakeUserRepository userRepository;
+    private FakePasswordHasher passwordHasher;
     private VerifyCredentialsService service;
 
     @BeforeEach
     void setUp() {
         userRepository = new FakeUserRepository();
-        service = new VerifyCredentialsService(userRepository, new FakePasswordHasher());
+        passwordHasher = new FakePasswordHasher();
+        service = new VerifyCredentialsService(userRepository, passwordHasher);
         userRepository.save(new User(UUID.randomUUID(), "user@example.com", "hashed:secret", Instant.now()));
     }
 
@@ -44,9 +48,11 @@ class VerifyCredentialsServiceTest {
     }
 
     @Test
-    void verifyUnknownUser() {
+    void verifyUnknownUserStillRunsMatches() {
+        int before = passwordHasher.matchesCalls.get();
         DomainException ex = assertThrows(DomainException.class, () -> service.verify("other@example.com", "secret"));
         assertEquals(ErrorCode.INVALID_CREDENTIALS, ex.getCode());
+        assertTrue(passwordHasher.matchesCalls.get() > before);
     }
 
     private static final class FakeUserRepository implements UserRepository {
@@ -75,6 +81,8 @@ class VerifyCredentialsServiceTest {
     }
 
     private static final class FakePasswordHasher implements PasswordHasher {
+        final AtomicInteger matchesCalls = new AtomicInteger();
+
         @Override
         public String hash(String rawPassword) {
             return "hashed:" + rawPassword;
@@ -82,6 +90,7 @@ class VerifyCredentialsServiceTest {
 
         @Override
         public boolean matches(String rawPassword, String passwordHash) {
+            matchesCalls.incrementAndGet();
             return passwordHash.equals(hash(rawPassword));
         }
     }

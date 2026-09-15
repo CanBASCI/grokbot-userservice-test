@@ -8,6 +8,7 @@ public final class RefreshTokenRecord {
 
     private final UUID id;
     private final UUID userId;
+    private final String email;
     private final String tokenHash;
     private final Instant expiresAt;
     private final Instant revokedAt;
@@ -16,6 +17,7 @@ public final class RefreshTokenRecord {
     public RefreshTokenRecord(
             UUID id,
             UUID userId,
+            String email,
             String tokenHash,
             Instant expiresAt,
             Instant revokedAt,
@@ -23,6 +25,7 @@ public final class RefreshTokenRecord {
     ) {
         this.id = Objects.requireNonNull(id);
         this.userId = Objects.requireNonNull(userId);
+        this.email = Objects.requireNonNull(email);
         this.tokenHash = Objects.requireNonNull(tokenHash);
         this.expiresAt = Objects.requireNonNull(expiresAt);
         this.revokedAt = revokedAt;
@@ -35,6 +38,10 @@ public final class RefreshTokenRecord {
 
     public UUID getUserId() {
         return userId;
+    }
+
+    public String getEmail() {
+        return email;
     }
 
     public String getTokenHash() {
@@ -57,7 +64,11 @@ public final class RefreshTokenRecord {
         return revokedAt == null && expiresAt.isAfter(now);
     }
 
+    public boolean isRevoked() {
+        return revokedAt != null;
+    }
+
     public RefreshTokenRecord revoked(Instant at) {
-        return new RefreshTokenRecord(id, userId, tokenHash, expiresAt, at, createdAt);
+        return new RefreshTokenRecord(id, userId, email, tokenHash, expiresAt, at, createdAt);
     }
 }

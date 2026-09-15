@@ -10,9 +10,9 @@ spring:
   application:
     name: login-service
   datasource:
-    url: ${SPRING_DATASOURCE_URL:jdbc:postgresql://localhost:5432/login}
-    username: ${SPRING_DATASOURCE_USERNAME:login}
-    password: ${SPRING_DATASOURCE_PASSWORD:login}
+    url: ${SPRING_DATASOURCE_URL}
+    username: ${SPRING_DATASOURCE_USERNAME}
+    password: ${SPRING_DATASOURCE_PASSWORD}
   jpa:
     hibernate:
       ddl-auto: validate
@@ -36,6 +36,7 @@ app:
     ttl-seconds: ${REFRESH_TTL_SECONDS:2592000}
   signup:
     base-url: ${SIGNUP_BASE_URL:}
+  internal-api-key: ${INTERNAL_API_KEY:}
 
 logging:
   level:

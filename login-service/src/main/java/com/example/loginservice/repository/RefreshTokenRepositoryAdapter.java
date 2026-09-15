@@ -2,12 +2,14 @@ package com.example.loginservice.repository;
 
 import com.example.loginservice.domain.model.RefreshTokenRecord;
 import com.example.loginservice.domain.port.RefreshTokenRepository;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.time.Clock;
+import java.time.Instant;
 import java.util.Optional;
 import java.util.UUID;
 
-public final class RefreshTokenRepositoryAdapter implements RefreshTokenRepository {
+public class RefreshTokenRepositoryAdapter implements RefreshTokenRepository {
 
     private final SpringDataRefreshTokenJpaRepository jpaRepository;
     private final Clock clock;
@@ -22,6 +24,7 @@ public final class RefreshTokenRepositoryAdapter implements RefreshTokenReposito
         RefreshTokenEntity entity = new RefreshTokenEntity(
                 record.getId(),
                 record.getUserId(),
+                record.getEmail(),
                 record.getTokenHash(),
                 record.getExpiresAt(),
                 record.getRevokedAt(),
@@ -36,6 +39,19 @@ public final class RefreshTokenRepositoryAdapter implements RefreshTokenReposito
     }
 
     @Override
+    @Transactional
+    public boolean claimActive(String tokenHash, Instant now) {
+        return jpaRepository.claimActive(tokenHash, now) == 1;
+    }
+
+    @Override
+    @Transactional
+    public void revokeAllForUser(UUID userId) {
+        jpaRepository.revokeAllForUser(userId, clock.instant());
+    }
+
+    @Override
+    @Transactional
     public void revoke(UUID id) {
         jpaRepository.findById(id).ifPresent(entity -> {
             entity.setRevokedAt(clock.instant());
@@ -47,6 +63,7 @@ public final class RefreshTokenRepositoryAdapter implements RefreshTokenReposito
         return new RefreshTokenRecord(
                 entity.getId(),
                 entity.getUserId(),
+                entity.getEmail(),
                 entity.getTokenHash(),
                 entity.getExpiresAt(),
                 entity.getRevokedAt(),

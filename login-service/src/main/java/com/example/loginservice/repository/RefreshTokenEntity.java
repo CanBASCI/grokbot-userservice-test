@@ -19,6 +19,9 @@ public class RefreshTokenEntity {
     @Column(name = "user_id", nullable = false)
     private UUID userId;
 
+    @Column(name = "email", nullable = false, length = 320)
+    private String email;
+
     @Column(name = "token_hash", nullable = false, length = 255, unique = true)
     private String tokenHash;
 
@@ -37,6 +40,7 @@ public class RefreshTokenEntity {
     public RefreshTokenEntity(
             UUID id,
             UUID userId,
+            String email,
             String tokenHash,
             Instant expiresAt,
             Instant revokedAt,
@@ -44,6 +48,7 @@ public class RefreshTokenEntity {
     ) {
         this.id = id;
         this.userId = userId;
+        this.email = email;
         this.tokenHash = tokenHash;
         this.expiresAt = expiresAt;
         this.revokedAt = revokedAt;
@@ -56,6 +61,10 @@ public class RefreshTokenEntity {
 
     public UUID getUserId() {
         return userId;
+    }
+
+    public String getEmail() {
+        return email;
     }
 
     public String getTokenHash() {

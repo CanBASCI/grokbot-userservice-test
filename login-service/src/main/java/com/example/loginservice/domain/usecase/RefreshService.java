@@ -46,16 +46,20 @@ public final class RefreshService {
         RefreshTokenRecord existing = refreshTokenRepository.findByTokenHash(hash)
                 .orElseThrow(RefreshService::invalidRefresh);
 
+        if (existing.isRevoked()) {
+            refreshTokenRepository.revokeAllForUser(existing.getUserId());
+            throw invalidRefresh();
+        }
+
         if (!existing.isActive(now)) {
             throw invalidRefresh();
         }
 
-        AuthenticatedUser user = tokenIssuer.parseRefreshToken(rawRefreshToken)
-                .filter(u -> u.getUserId().equals(existing.getUserId()))
-                .orElseThrow(RefreshService::invalidRefresh);
+        if (!refreshTokenRepository.claimActive(hash, now)) {
+            throw invalidRefresh();
+        }
 
-        refreshTokenRepository.revoke(existing.getId());
-
+        AuthenticatedUser user = new AuthenticatedUser(existing.getUserId(), existing.getEmail());
         return loginService.issueTokens(user);
     }
 

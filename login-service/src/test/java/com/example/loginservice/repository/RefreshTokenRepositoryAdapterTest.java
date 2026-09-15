@@ -18,6 +18,7 @@ import java.time.ZoneOffset;
 import java.util.UUID;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
@@ -43,21 +44,37 @@ class RefreshTokenRepositoryAdapterTest {
     private RefreshTokenRepository repository;
 
     @Test
-    void saveFindAndRevoke() {
+    void saveFindClaimAndRevokeAll() {
         UUID id = UUID.randomUUID();
         UUID userId = UUID.randomUUID();
         RefreshTokenRecord saved = repository.save(new RefreshTokenRecord(
                 id,
                 userId,
+                "user@example.com",
                 "abc123hash",
                 NOW.plusSeconds(60),
                 null,
                 NOW
         ));
         assertEquals(id, saved.getId());
+        assertEquals("user@example.com", saved.getEmail());
         assertTrue(repository.findByTokenHash("abc123hash").isPresent());
-        repository.revoke(id);
+        assertTrue(repository.claimActive("abc123hash", NOW));
+        assertFalse(repository.claimActive("abc123hash", NOW));
         assertNotNull(repository.findByTokenHash("abc123hash").orElseThrow().getRevokedAt());
+
+        UUID id2 = UUID.randomUUID();
+        repository.save(new RefreshTokenRecord(
+                id2,
+                userId,
+                "user@example.com",
+                "hash2",
+                NOW.plusSeconds(60),
+                null,
+                NOW
+        ));
+        repository.revokeAllForUser(userId);
+        assertNotNull(repository.findByTokenHash("hash2").orElseThrow().getRevokedAt());
     }
 
     static class ClockConfig {

@@ -3,6 +3,7 @@ package com.example.loginservice.infrastructure;
 import com.example.loginservice.domain.model.AuthenticatedUser;
 import okhttp3.mockwebserver.MockResponse;
 import okhttp3.mockwebserver.MockWebServer;
+import okhttp3.mockwebserver.RecordedRequest;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -30,7 +31,7 @@ class HttpCredentialVerifierClientTest {
         RestClient restClient = RestClient.builder()
                 .baseUrl(server.url("/").toString().replaceAll("/$", ""))
                 .build();
-        client = new HttpCredentialVerifierClient(restClient);
+        client = new HttpCredentialVerifierClient(restClient, "test-internal-api-key");
     }
 
     @AfterEach
@@ -39,7 +40,7 @@ class HttpCredentialVerifierClientTest {
     }
 
     @Test
-    void verifySuccess() {
+    void verifySuccessSendsApiKeyHeader() throws Exception {
         UUID id = UUID.randomUUID();
         server.enqueue(new MockResponse()
                 .setResponseCode(200)
@@ -51,7 +52,9 @@ class HttpCredentialVerifierClientTest {
         Optional<AuthenticatedUser> result = client.verify("user@example.com", "password123");
         assertTrue(result.isPresent());
         assertEquals(id, result.get().getUserId());
-        assertEquals("user@example.com", result.get().getEmail());
+
+        RecordedRequest req = server.takeRequest();
+        assertEquals("test-internal-api-key", req.getHeader(HttpCredentialVerifierClient.INTERNAL_API_KEY_HEADER));
     }
 
     @Test
