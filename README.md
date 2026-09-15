@@ -9,7 +9,7 @@ Archon auth multi-module Maven project:
 | `login-service` | **9092** gRPC | `auth.login.v1` Login + Refresh; JWT + opaque refresh; verifies credentials via signup gRPC |
 | `auth-proto` | — | Frozen protobuf/gRPC stubs |
 
-**nginx edge is deprecated for API entry.** Public clients hit `api-gateway`. gRPC ports must **not** be publicly exposed (network isolation). Harbor Compose update is later.
+Public clients hit **`api-gateway:8080`**. gRPC (`9091`/`9092`) stays on the private compose network — **not** published to the host. nginx is **not** the API entry (see `edge/README.md`).
 
 ## Versions
 
@@ -96,9 +96,22 @@ mvn -pl login-service spring-boot:run
 mvn -pl api-gateway spring-boot:run
 ```
 
-## Docker Compose (Harbor) — legacy note
+## Docker Compose (Harbor)
 
-Existing `compose.yml` / nginx edge still targets the old HTTP services. Treat nginx as **deprecated for API entry**; prefer `api-gateway:8080`. Compose will be updated later for gRPC + gateway.
+Publish **only** `api-gateway` on host `${HTTP_PORT:-8080}`. Private: `signup-service:9091`, `login-service:9092`, `signup-db`, `login-db`. Flyway on app boot. Named volumes kept on `down` (no wipe / no `system prune -a`).
+
+Requires **Maven ≥ 3.9.11** inside the image build (protobuf plugin).
+
+```bash
+cp .env.example .env   # set JWT_SECRET (≥32) and DB passwords
+make full-up
+# tear down (volumes kept):
+make down
+# also drop local app images:
+make down-clean
+```
+
+Smoke (`scripts/smoke.sh`): asserts host `:9091`/`:9092` closed, then gateway signup → login → refresh.
 
 ## Push
 

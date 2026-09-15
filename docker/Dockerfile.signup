@@ -1,23 +1,20 @@
-# signup-service — Java 25 / Boot 4 multi-stage. Secrets from env only.
+# signup-service — gRPC 9091. Maven ≥ 3.9.11 for protobuf plugin.
 FROM maven:3.9.11-eclipse-temurin-25 AS build
 WORKDIR /build
 COPY pom.xml .
-COPY signup-service/pom.xml signup-service/pom.xml
+COPY auth-proto auth-proto
+COPY signup-service signup-service
 COPY login-service/pom.xml login-service/pom.xml
-COPY signup-service/src signup-service/src
-COPY login-service/src login-service/src
+COPY api-gateway/pom.xml api-gateway/pom.xml
 RUN mvn -B -pl signup-service -am -Dmaven.test.skip=true package \
-    && cp signup-service/target/signup-service-*.jar /build/app.jar
+    && cp signup-service/target/signup-service-0.1.0-SNAPSHOT.jar /build/app.jar
 
 FROM eclipse-temurin:25-jre
 WORKDIR /app
-RUN apt-get update \
-    && apt-get install -y --no-install-recommends curl \
-    && rm -rf /var/lib/apt/lists/* \
-    && groupadd --system app \
+RUN groupadd --system app \
     && useradd --system --gid app --home-dir /app --shell /usr/sbin/nologin app
 COPY --from=build /build/app.jar /app/app.jar
 USER app
-ENV SERVER_PORT=8081
-EXPOSE 8081
+ENV GRPC_SERVER_PORT=9091
+EXPOSE 9091
 ENTRYPOINT ["java", "-jar", "/app/app.jar"]

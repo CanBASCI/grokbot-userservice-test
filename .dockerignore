@@ -7,4 +7,4 @@
 !.env.example
 **/CLERK_DELIVERABLE.md
 FILE_MANIFEST.txt
-scripts/smoke.sh
+edge/
