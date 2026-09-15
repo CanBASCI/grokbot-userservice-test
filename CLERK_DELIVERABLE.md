@@ -73,21 +73,12 @@ Not: Docker/Testcontainers bu kutuda yok; repository testleri **Flyway + H2** (`
 
 Tercih edilen remote: `git@github.com:CanBASCI/grokbot-userservice-test.git`
 
-Push denemesi bu teslimatta yapılacaktır; başarısız olursa Anvil/Clerk’in kendisinin push etmesi gerekir (anahtar/chat’e secret koyma yok).
+**Push başarılı:** `main` → `CanBASCI/grokbot-userservice-test` (SSH deploy key host alias `github.com-grokbot-userservice-test`, commit `2e2f643`). Chat’e secret yazılmadı.
 
-Manuel komutlar:
-
-```bash
-cd /workspace/grokbot-auth
-git init
-git add .
-git commit -m "Add signup and login Spring Boot auth services"
-git branch -M main
-git remote add origin git@github.com:CanBASCI/grokbot-userservice-test.git
-git push -u origin main
-```
+Yerel ağaç: `/workspace/grokbot-auth`
 
 ## H. Engeller
 
-- Docker yok → Testcontainers PostgreSQL kullanılmadı; H2 test profili ile dar kapsamlı repository testleri
-- Jackson 3 paketleri (`tools.jackson.databind.exc`) Boot 4’te güncellendi
+- Docker yok → Testcontainers PostgreSQL kullanılmadı; repository testleri Flyway+H2 (`db/migration-h2`)
+- Jackson 3 paket adları Boot 4 ile (`tools.jackson.*`) — çözüldü
+- `mvn -q test`: **31 test, hepsi yeşil** (signup 17 + login 14)
