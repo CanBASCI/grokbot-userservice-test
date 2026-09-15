@@ -7,6 +7,7 @@ import com.example.signupservice.domain.usecase.VerifyCredentialsService;
 import com.example.signupservice.transport.dto.VerifyCredentialsRequest;
 import com.example.signupservice.transport.dto.VerifyCredentialsResponse;
 import com.example.signupservice.transport.mapper.SignupTransportMapper;
+import jakarta.validation.Valid;
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
@@ -39,7 +40,7 @@ public class InternalCredentialsController {
     @PostMapping(path = "/verify", consumes = MediaType.APPLICATION_JSON_VALUE)
     public ResponseEntity<VerifyCredentialsResponse> verify(
             @RequestHeader(value = INTERNAL_API_KEY_HEADER, required = false) String apiKey,
-            @RequestBody VerifyCredentialsRequest request
+            @Valid @RequestBody VerifyCredentialsRequest request
     ) {
         if (apiKey == null || !internalApiKey.equals(apiKey)) {
             throw new DomainException(
@@ -49,7 +50,7 @@ public class InternalCredentialsController {
                     "Unauthorized"
             );
         }
-        User user = verifyCredentialsService.verify(request.getEmail(), request.getPassword());
+        User user = verifyCredentialsService.verify(request.email(), request.password());
         return ResponseEntity.ok(mapper.toVerifyResponse(user));
     }
 }

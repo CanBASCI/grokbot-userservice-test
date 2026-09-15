@@ -7,6 +7,7 @@ import com.example.loginservice.transport.dto.LoginRequest;
 import com.example.loginservice.transport.dto.RefreshRequest;
 import com.example.loginservice.transport.dto.TokenResponse;
 import com.example.loginservice.transport.mapper.LoginTransportMapper;
+import jakarta.validation.Valid;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -33,14 +34,14 @@ public class AuthController {
     }
 
     @PostMapping(path = "/login", consumes = MediaType.APPLICATION_JSON_VALUE)
-    public ResponseEntity<TokenResponse> login(@RequestBody LoginRequest request) {
-        TokenPair pair = loginService.login(request.getEmail(), request.getPassword());
+    public ResponseEntity<TokenResponse> login(@Valid @RequestBody LoginRequest request) {
+        TokenPair pair = loginService.login(request.email(), request.password());
         return ResponseEntity.ok(mapper.toResponse(pair));
     }
 
     @PostMapping(path = "/refresh", consumes = MediaType.APPLICATION_JSON_VALUE)
-    public ResponseEntity<TokenResponse> refresh(@RequestBody RefreshRequest request) {
-        TokenPair pair = refreshService.refresh(request.getRefreshToken());
+    public ResponseEntity<TokenResponse> refresh(@Valid @RequestBody RefreshRequest request) {
+        TokenPair pair = refreshService.refresh(request.refreshToken());
         return ResponseEntity.ok(mapper.toResponse(pair));
     }
 }

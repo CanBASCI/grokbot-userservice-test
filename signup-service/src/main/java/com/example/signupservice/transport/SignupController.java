@@ -5,6 +5,7 @@ import com.example.signupservice.domain.usecase.SignupService;
 import com.example.signupservice.transport.dto.SignupRequest;
 import com.example.signupservice.transport.dto.SignupResponse;
 import com.example.signupservice.transport.mapper.SignupTransportMapper;
+import jakarta.validation.Valid;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
@@ -26,8 +27,8 @@ public class SignupController {
     }
 
     @PostMapping(path = "/signup", consumes = MediaType.APPLICATION_JSON_VALUE)
-    public ResponseEntity<SignupResponse> signup(@RequestBody SignupRequest request) {
-        User user = signupService.signup(request.getEmail(), request.getPassword());
+    public ResponseEntity<SignupResponse> signup(@Valid @RequestBody SignupRequest request) {
+        User user = signupService.signup(request.email(), request.password());
         return ResponseEntity.status(HttpStatus.CREATED).body(mapper.toSignupResponse(user));
     }
 }
