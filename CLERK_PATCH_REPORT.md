@@ -2,7 +2,7 @@
 
 **Repo:** `CanBASCI/grokbot-userservice-test` (`/workspace/grokbot-auth`)  
 **Base:** `d0acaa0`  
-**SHA:** `fc315bc6b6879960bc0338e1390f6031cdaf1281` (tip; implement `b478ae21d433f01583a00a6bde45f819bd553410`)
+**SHA:** `b478ae21d433f01583a00a6bde45f819bd553410` (implement) · tip `origin/main` after docs commits
 **Tarih (TR / Europe/Istanbul):** 2026-09-16  
 
 ## Özet
