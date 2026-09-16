@@ -33,12 +33,7 @@ public final class RefreshService {
 
     public TokenPair refresh(String rawRefreshToken) {
         if (rawRefreshToken == null || rawRefreshToken.isBlank()) {
-            throw new DomainException(
-                    ErrorCode.REFRESH_TOKEN_REQUIRED,
-                    400,
-                    "Bad Request",
-                    "Refresh token is required"
-            );
+            throw new DomainException(ErrorCode.REFRESH_TOKEN_REQUIRED, "Refresh token is required");
         }
 
         Instant now = clock.instant();
@@ -64,11 +59,6 @@ public final class RefreshService {
     }
 
     private static DomainException invalidRefresh() {
-        return new DomainException(
-                ErrorCode.INVALID_REFRESH_TOKEN,
-                401,
-                "Unauthorized",
-                "Invalid refresh token"
-        );
+        return new DomainException(ErrorCode.INVALID_REFRESH_TOKEN, "Invalid refresh token");
     }
 }

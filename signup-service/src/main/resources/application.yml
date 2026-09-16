@@ -25,3 +25,12 @@ spring:
 logging:
   level:
     root: INFO
+
+management:
+  tracing:
+    sampling:
+      probability: 1.0
+  otlp:
+    tracing:
+      export:
+        enabled: false

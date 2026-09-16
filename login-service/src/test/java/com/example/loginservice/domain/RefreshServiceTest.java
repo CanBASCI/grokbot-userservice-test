@@ -88,7 +88,7 @@ class RefreshServiceTest {
                 () -> refreshService.refresh("unknown-token-value")
         );
         assertEquals(ErrorCode.INVALID_REFRESH_TOKEN, ex.getCode());
-        assertEquals(401, ex.getStatus());
+        
     }
 
     @Test

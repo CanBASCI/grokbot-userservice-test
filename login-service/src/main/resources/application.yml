@@ -25,6 +25,8 @@ spring:
       channel:
         signup:
           target: ${SIGNUP_GRPC_TARGET:static://localhost:9090}
+          default:
+            load-balancing-policy: round_robin
 
 app:
   jwt:
@@ -36,3 +38,12 @@ app:
 logging:
   level:
     root: INFO
+
+management:
+  tracing:
+    sampling:
+      probability: 1.0
+  otlp:
+    tracing:
+      export:
+        enabled: false

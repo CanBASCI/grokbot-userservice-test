@@ -36,12 +36,7 @@ public final class SignupService {
         validatePassword(password);
 
         if (userRepository.existsByEmail(normalizedEmail)) {
-            throw new DomainException(
-                    ErrorCode.EMAIL_TAKEN,
-                    409,
-                    "Conflict",
-                    "Email is already registered"
-            );
+            throw new DomainException(ErrorCode.EMAIL_TAKEN, "Email is already registered");
         }
 
         User user = new User(
@@ -55,47 +50,28 @@ public final class SignupService {
 
     static String validateAndNormalizeEmail(String email) {
         if (email == null || email.isBlank()) {
-            throw new DomainException(
-                    ErrorCode.EMAIL_REQUIRED,
-                    400,
-                    "Bad Request",
-                    "Email is required"
-            );
+            throw new DomainException(ErrorCode.EMAIL_REQUIRED, "Email is required");
         }
         String normalized = email.trim().toLowerCase(Locale.ROOT);
         if (!EMAIL_PATTERN.matcher(normalized).matches()) {
-            throw new DomainException(
-                    ErrorCode.EMAIL_INVALID,
-                    400,
-                    "Bad Request",
-                    "Email format is invalid"
-            );
+            throw new DomainException(ErrorCode.EMAIL_INVALID, "Email format is invalid");
         }
         return normalized;
     }
 
     static void validatePassword(String password) {
         if (password == null || password.isBlank()) {
-            throw new DomainException(
-                    ErrorCode.PASSWORD_REQUIRED,
-                    400,
-                    "Bad Request",
-                    "Password is required"
-            );
+            throw new DomainException(ErrorCode.PASSWORD_REQUIRED, "Password is required");
         }
         if (password.length() < PASSWORD_MIN_LENGTH) {
             throw new DomainException(
                     ErrorCode.PASSWORD_TOO_SHORT,
-                    400,
-                    "Bad Request",
                     "Password must be at least " + PASSWORD_MIN_LENGTH + " characters"
             );
         }
         if (password.length() > PASSWORD_MAX_LENGTH) {
             throw new DomainException(
                     ErrorCode.PASSWORD_TOO_LONG,
-                    400,
-                    "Bad Request",
                     "Password must be at most " + PASSWORD_MAX_LENGTH + " characters"
             );
         }

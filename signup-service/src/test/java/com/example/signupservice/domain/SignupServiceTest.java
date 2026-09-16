@@ -60,7 +60,6 @@ class SignupServiceTest {
                 () -> signupService.signup("taken@example.com", "password123")
         );
         assertEquals(ErrorCode.EMAIL_TAKEN, ex.getCode());
-        assertEquals(409, ex.getStatus());
     }
 
     @Test

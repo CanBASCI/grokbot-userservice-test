@@ -15,8 +15,8 @@ Public clients hit **`api-gateway:8080`**. In Compose, gateway/login use `static
 
 - Spring Boot **4.1.1**
 - Java **25** LTS
-- MapStruct **1.6.3** (gateway maps records ↔ proto manually; no Lombok)
-- JJWT **0.12.6**
+- JJWT **0.13.0** (`jjwt-gson`; no MapStruct)
+- `protobuf-maven-plugin` **5.1.9** + `proto-google-common-protos`
 - Boot gRPC starters (`spring-boot-starter-grpc-server` / `grpc-client`) + `io.github.ascopes:protobuf-maven-plugin`
 - Flyway + PostgreSQL; `ddl-auto=validate`
 
@@ -34,6 +34,7 @@ Gateway **never** calls `VerifyCredentials`; only `login-service` does.
 ### api-gateway
 
 ```bash
+export HTTP_PORT=8080   # preferred; falls back to SERVER_PORT, default 8080
 export SERVER_PORT=8080
 export SIGNUP_GRPC_TARGET=static://localhost:9090
 export LOGIN_GRPC_TARGET=static://localhost:9090
@@ -67,11 +68,12 @@ Boot **fails** if `JWT_SECRET` is missing/blank/`<32` chars. Prod datasource env
 
 ## Public REST (gateway only)
 
-- `POST /v1/auth/signup` → 201 `{userId,email}` | 409 `EMAIL_TAKEN` | validation codes
+- `POST /v1/auth/signup` (**Idempotency-Key** required) → 201 `{userId,email}` | 409 `EMAIL_TAKEN` / `IDEMPOTENCY_KEY_BODY_MISMATCH` | validation codes
+- `GET /ready` process up; `GET /health` deep (signup+login gRPC reachability)
 - `POST /v1/auth/login` → 200 tokens | 401 `INVALID_CREDENTIALS`
 - `POST /v1/auth/refresh` → 200 rotated tokens | 401 `INVALID_REFRESH_TOKEN`
 
-Errors: `application/problem+json` with `type`, `title`, `status`, `detail`, `code`.
+Errors: `application/problem+json` with `type` (`https://grokbot.local/errors/{kebab}`), `title`, `status`, `detail`, `code`, **`trace_id`** (5xx detail fixed).
 
 gRPC domain errors attach trailing metadata `error-code` (UPPER_SNAKE). Gateway maps:
 `INVALID_ARGUMENT`→400, `ALREADY_EXISTS`→409, `UNAUTHENTICATED`→401.

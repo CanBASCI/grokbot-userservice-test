@@ -1,11 +1,14 @@
 package com.example.signupservice.cmd;
 
 import com.example.signupservice.domain.port.PasswordHasher;
+import com.example.signupservice.domain.port.SignupIdempotencyStore;
 import com.example.signupservice.domain.port.UserRepository;
 import com.example.signupservice.domain.usecase.SignupService;
 import com.example.signupservice.domain.usecase.VerifyCredentialsService;
 import com.example.signupservice.infrastructure.BCryptPasswordHasher;
+import com.example.signupservice.repository.SpringDataSignupIdempotencyJpaRepository;
 import com.example.signupservice.repository.SpringDataUserJpaRepository;
+import com.example.signupservice.repository.SignupIdempotencyStoreAdapter;
 import com.example.signupservice.repository.UserRepositoryAdapter;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
@@ -28,6 +31,15 @@ public class DomainConfig {
     @Bean
     UserRepository userRepository(SpringDataUserJpaRepository jpaRepository) {
         return new UserRepositoryAdapter(jpaRepository);
+    }
+
+
+    @Bean
+    SignupIdempotencyStore signupIdempotencyStore(
+            SpringDataSignupIdempotencyJpaRepository jpaRepository,
+            Clock clock
+    ) {
+        return new SignupIdempotencyStoreAdapter(jpaRepository, clock);
     }
 
     @Bean

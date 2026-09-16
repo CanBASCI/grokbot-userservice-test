@@ -42,11 +42,6 @@ public final class VerifyCredentialsService {
     }
 
     private static DomainException invalidCredentials() {
-        return new DomainException(
-                ErrorCode.INVALID_CREDENTIALS,
-                401,
-                "Unauthorized",
-                "Invalid credentials"
-        );
+        return new DomainException(ErrorCode.INVALID_CREDENTIALS, "Invalid credentials");
     }
 }

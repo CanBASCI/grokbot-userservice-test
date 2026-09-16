@@ -71,7 +71,7 @@ class LoginServiceTest {
                 () -> loginService.login("user@example.com", "wrong")
         );
         assertEquals(ErrorCode.INVALID_CREDENTIALS, ex.getCode());
-        assertEquals(401, ex.getStatus());
+        
     }
 
     @Test

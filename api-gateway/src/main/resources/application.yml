@@ -1,5 +1,5 @@
 server:
-  port: ${SERVER_PORT:8080}
+  port: ${HTTP_PORT:${SERVER_PORT:8080}}
   error:
     include-message: never
     include-binding-errors: never
@@ -17,9 +17,31 @@ spring:
       channel:
         signup:
           target: ${SIGNUP_GRPC_TARGET:static://localhost:9090}
+          default:
+            load-balancing-policy: round_robin
         login:
           target: ${LOGIN_GRPC_TARGET:static://localhost:9090}
+          default:
+            load-balancing-policy: round_robin
+
+management:
+  tracing:
+    sampling:
+      probability: 1.0
+  otlp:
+    tracing:
+      export:
+        enabled: false
+    metrics:
+      export:
+        enabled: false
+  endpoints:
+    web:
+      exposure:
+        include: ""
 
 logging:
   level:
     root: INFO
+  pattern:
+    level: "%5p [${spring.application.name:},%X{traceId:-},%X{spanId:-},%X{code:-}]"

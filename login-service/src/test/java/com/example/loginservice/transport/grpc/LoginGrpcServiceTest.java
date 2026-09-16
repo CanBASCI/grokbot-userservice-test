@@ -65,7 +65,7 @@ class LoginGrpcServiceTest {
     @Test
     void loginInvalidCredentials() {
         when(loginService.login(anyString(), anyString()))
-                .thenThrow(new DomainException(ErrorCode.INVALID_CREDENTIALS, 401, "Unauthorized", "Invalid credentials"));
+                .thenThrow(new DomainException(ErrorCode.INVALID_CREDENTIALS, "Invalid credentials"));
 
         grpcService.login(
                 LoginRequest.newBuilder().setEmail("user@example.com").setPassword("wrong").build(),
@@ -98,7 +98,7 @@ class LoginGrpcServiceTest {
     @Test
     void refreshInvalid() {
         when(refreshService.refresh(anyString()))
-                .thenThrow(new DomainException(ErrorCode.INVALID_REFRESH_TOKEN, 401, "Unauthorized", "Invalid refresh token"));
+                .thenThrow(new DomainException(ErrorCode.INVALID_REFRESH_TOKEN, "Invalid refresh token"));
 
         grpcService.refresh(
                 RefreshRequest.newBuilder().setRefreshToken("bad").build(),

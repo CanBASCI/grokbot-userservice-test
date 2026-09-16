@@ -39,19 +39,14 @@ public final class LoginService {
 
     public TokenPair login(String email, String password) {
         if (email == null || email.isBlank()) {
-            throw new DomainException(ErrorCode.EMAIL_REQUIRED, 400, "Bad Request", "Email is required");
+            throw new DomainException(ErrorCode.EMAIL_REQUIRED, "Email is required");
         }
         if (password == null || password.isBlank()) {
-            throw new DomainException(ErrorCode.PASSWORD_REQUIRED, 400, "Bad Request", "Password is required");
+            throw new DomainException(ErrorCode.PASSWORD_REQUIRED, "Password is required");
         }
 
         AuthenticatedUser user = credentialVerifierClient.verify(email, password)
-                .orElseThrow(() -> new DomainException(
-                        ErrorCode.INVALID_CREDENTIALS,
-                        401,
-                        "Unauthorized",
-                        "Invalid credentials"
-                ));
+                .orElseThrow(() -> new DomainException(ErrorCode.INVALID_CREDENTIALS, "Invalid credentials"));
 
         return issueTokens(user);
     }
