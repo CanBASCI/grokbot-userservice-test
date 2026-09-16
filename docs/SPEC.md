@@ -1,31 +1,18 @@
 # Spec: grokbot-userservice-test (Maven artifact: grokbot-auth)
 
 Repo: https://github.com/CanBASCI/grokbot-userservice-test  
-Target audience: backend engineers implementing or reviewing this stack.
+Audience: backend engineers implementing or reviewing this stack.  
+Law tour tip (Harbor): `2320a40` — Anvil law patch `b478ae2`, prior SPEC `d0acaa0`.
 
 ---
 
 ## 1. Purpose and scope
 
-### 1.1 What is this?
+Spring Boot **4.1.1** + Java **25** identity reference: public signup / login / refresh behind an application API gateway; internal gRPC signup + login services; separate Postgres + Flyway each.
 
-A Spring Boot **4.1.1** + Java **25** identity (auth) reference system aligned with team law (Archon / Canon / Relay / Harbor / Sentinel). Public surface: signup, login, refresh. Internally two bounded contexts: **signup** (user aggregate + password) and **login** (session / tokens).
+**In scope:** layered microservices, RFC 9457 problem+json, ErrorInfo.reason, Idempotency-Key on signup, W3C trace_id, round_robin gRPC clients, Compose REPLICAS_*.
 
-### 1.2 Why it exists
-
-- Not a simple CRUD demo; a layered microservice reference.
-- Public edge = Spring **application API gateway** on host **8080** (not nginx as API entry).
-- Inter-service = **gRPC** on **9090** (not published to the host).
-- Each service owns its **Postgres** database + **Flyway**; no shared tables / cross-service FKs.
-- Pipeline proof: architecture → contracts → implementation law → code → security → Compose.
-
-### 1.3 Explicitly out of scope
-
-- Email verification, OAuth, MFA, password reset
-- Kafka / transactional outbox (this product is a sync auth path)
-- Mandatory OpenAPI, DLQ, empty notification/cron services
-- Production TLS terminator (optional in front of gateway only; never replaces it)
-- Lombok; JPA entities as `record`
+**Out of scope:** email verify, OAuth, MFA, reset, Kafka/outbox, mandatory OpenAPI/DLQ, nginx-as-API-entry, Lombok, shared DB.
 
 ---
 
@@ -35,344 +22,189 @@ A Spring Boot **4.1.1** + Java **25** identity (auth) reference system aligned w
 Client
    │  HTTP JSON  :8080
    ▼
-api-gateway          ← no business rules / no DB; REST + gRPC clients + problem+json
+api-gateway          — REST + infrastructure gRPC clients + problem+json; no business DB
    │
-   ├── gRPC Register ------------► signup-service:9090 ──► signup-db (postgres:18)
+   ├── gRPC Register (+ metadata idempotency-key) ► signup-service:9090 ► signup-db
    │
-   └── gRPC Login / Refresh ────► login-service:9090 ──► login-db (postgres:18)
+   └── gRPC Login / Refresh ► login-service:9090 ► login-db
                                       │
-                                      └── gRPC VerifyCredentials ► signup-service:9090
+                                      └── gRPC VerifyCredentials ► signup:9090
 ```
 
-Rules:
-
-- Gateway **never** calls `VerifyCredentials`; only `login-service` does.
-- Host publishes **only** gateway `8080`. Ports `9090` and DB ports are not mapped with `ports:` (`expose` + private network).
-- Both app containers listen on container-local `9090`; Compose DNS names (`signup-service` / `login-service`) distinguish them.
+- Host publishes **only** gateway `${HTTP_PORT:-8080}:8080`.
+- Business gRPC `GRPC_PORT=9090` is private (`expose`, not `ports`).
+- Gateway never calls VerifyCredentials.
+- nginx is not the API entry (`edge/README.md`).
 
 ---
 
-## 3. Maven module map
+## 3. Maven modules
 
-Parent: `com.example:grokbot-auth:0.1.0-SNAPSHOT` (`packaging=pom`)
+| Module | Role | Surface |
+|--------|------|---------|
+| `auth-proto` | Protobuf stubs + common protos | — |
+| `api-gateway` | Public REST, health, tracing | HTTP `HTTP_PORT` (default 8080) |
+| `signup-service` | Users + password + idempotency store | gRPC 9090 |
+| `login-service` | JWT + refresh sessions | gRPC 9090 |
 
-| Module | Role | External surface |
-|--------|------|------------------|
-| `auth-proto` | Protobuf / gRPC stub jar | — |
-| `api-gateway` | Public REST | HTTP `8080` |
-| `signup-service` | User + password | gRPC `9090` |
-| `login-service` | Token / session | gRPC `9090` |
+**Pins (current):**
 
-Pinned versions:
-
-- Spring Boot **4.1.1**
-- Java **25**
-- MapStruct **1.6.3**
-- JJWT **0.12.6**
-- Boot gRPC starters + `protobuf-maven-plugin` → requires **Maven ≥ 3.9.11**
-- Flyway + PostgreSQL; `ddl-auto=validate` (schema is not code-first)
+- Spring Boot **4.1.1**, Java **25**
+- JJWT **0.13.0** + **jjwt-gson** (not jjwt-jackson)
+- `protobuf-maven-plugin` **5.1.9**
+- No MapStruct, no Lombok, no `javax.annotation-api`
+- Flyway + Postgres; `ddl-auto=validate`
 
 ---
 
-## 4. Repository layout
-
-```
-grokbot-userservice-test/
-├── pom.xml
-├── compose.yml
-├── Makefile
-├── .env.example
-├── README.md
-├── CLERK_DELIVERABLE.md
-├── FILE_MANIFEST.txt
-├── docs/
-│   └── SPEC.md                 # this document
-├── auth-proto/
-│   └── src/main/proto/auth/{signup,login}/v1/*.proto
-├── api-gateway/
-│   └── src/main/java/.../{cmd,transport/{dto,rest,advice}}
-├── signup-service/
-│   └── src/main/java/.../{cmd,domain,repository,infrastructure,transport/grpc}
-│   └── src/main/resources/db/migration/V1__users.sql
-├── login-service/
-│   └── ... same layer packages
-│   └── db/migration/V1__refresh_tokens.sql, V2__refresh_token_email.sql
-├── docker/                     # Dockerfile.{gateway,signup,login}
-├── edge/README.md              # nginx is not the API entry
-└── scripts/smoke.sh
-```
-
-### 4.1 In-service layer law (Canon)
-
-Dependency direction: `transport` / `infrastructure` / `repository` → `domain` ← `cmd` (wiring).
-
-| Package | Contains | Forbidden |
-|---------|----------|-----------|
-| `cmd` | Boot app, config, bean wiring | Business rules |
-| `domain` | model, ports, usecases, `ErrorCode` / `DomainException` | Spring / Web / JPA / gRPC stubs |
-| `repository` | JPA entity, Spring Data repo, adapter | REST controllers |
-| `infrastructure` | BCrypt, JWT, gRPC client | Leaking Spring into domain |
-| `transport/grpc` | gRPC service impl + status mapper | Direct DB access |
-
-Gateway has no domain/repository: only `transport` + stub injection.
-
----
-
-## 5. Public REST contract (gateway only)
+## 4. Public REST (gateway only)
 
 Base: `http://host:8080`  
 Prefix: `/v1/auth`  
-Content-Type: `application/json`  
-Errors: `application/problem+json`
+Probes: `GET /ready` (process), `GET /health` (gRPC channel reachability)
 
-### 5.1 `POST /v1/auth/signup` → **201**
+### 4.1 Problem+json (RFC 9457)
 
-Request (`SignupRequest` record):
+Every 4xx/5xx:
 
-```json
-{ "email": "a@example.com", "password": "Password123!" }
-```
-
-Validation:
-
-- `email`: `@NotBlank` → `EMAIL_REQUIRED`; `@Email` → `EMAIL_INVALID`
-- `password`: length 8–128 → `PASSWORD_TOO_SHORT` / `PASSWORD_TOO_LONG`
-- Unknown fields → `UNKNOWN_PROPERTY` (`@JsonIgnoreProperties(ignoreUnknown = false)` + Jackson fail-on-unknown)
-
-Response (`SignupResponse`):
-
-```json
-{ "userId": "<uuid>", "email": "a@example.com" }
-```
-
-Domain conflict: **409** `EMAIL_TAKEN`
-
-Gateway: `SignupServiceGrpc.Register` → map to 201 body.
-
-### 5.2 `POST /v1/auth/login` → **200**
-
-Request (`LoginRequest`):
-
-```json
-{ "email": "...", "password": "..." }
-```
-
-Response (`TokenResponse`):
-
-```json
-{
-  "accessToken": "<jwt>",
-  "refreshToken": "<opaque>",
-  "tokenType": "Bearer",
-  "expiresIn": 900
-}
-```
-
-Failure: **401** `INVALID_CREDENTIALS`
-
-### 5.3 `POST /v1/auth/refresh` → **200**
-
-Request (`RefreshRequest`):
-
-```json
-{ "refreshToken": "..." }
-```
-
-Same `TokenResponse` shape.  
-Invalid / revoked / expired / race: **401** `INVALID_REFRESH_TOKEN`  
-Missing: **400** `REFRESH_TOKEN_REQUIRED`
-
-### 5.4 Problem+JSON members
-
-Handler: `ProblemDetailExceptionHandler`
-
-| Member | Meaning |
-|--------|---------|
-| `type` | `about:blank` |
-| `title` | e.g. `Bad Request` |
+| Member | Rule |
+|--------|------|
+| `type` | `https://grokbot.local/errors/{kebab-from-code}` (not `about:blank`) |
+| `title` | Short English HTTP title |
 | `status` | HTTP status number |
-| `detail` | human-readable (not an i18n key) |
-| `code` | string business code (`EMAIL_TAKEN`, …) |
+| `detail` | Client-safe; **5xx always** `An unexpected error occurred.` |
+| `code` | UPPER_SNAKE = `ErrorInfo.reason` |
+| `trace_id` | W3C trace-id (32 hex), always present |
 
-gRPC trailer key: `error-code` (ASCII). Status map:
+FromGRPC: prefer `google.rpc.ErrorInfo.reason`; trailer `error-code` fallback; never collapse to `GATEWAY_*`.
 
-- `INVALID_ARGUMENT` → 400
-- `ALREADY_EXISTS` → 409
-- `UNAUTHENTICATED` → 401
-- other → 500 `INTERNAL` (no stack / binding leak to clients)
+### 4.2 `POST /v1/auth/signup` → **201**
 
----
+Headers: `Content-Type: application/json`, **`Idempotency-Key` required** (non-blank, max 128, printable ASCII).
 
-## 6. gRPC contracts (`auth-proto`)
+Body: `{ "email", "password" }` (password 8–128).  
+Response: `{ "userId", "email" }`.
 
-### 6.1 `auth.signup.v1.SignupService`
+| HTTP | code |
+|------|------|
+| 201 | created or idempotent replay |
+| 400 | EMAIL_*, PASSWORD_*, UNKNOWN_PROPERTY, INVALID_JSON, IDEMPOTENCY_KEY_REQUIRED, IDEMPOTENCY_KEY_INVALID |
+| 409 | EMAIL_TAKEN, IDEMPOTENCY_KEY_BODY_MISMATCH |
 
-- `Register(email, password) → (user_id, email)`
-- `VerifyCredentials(email, password) → (user_id, email)` — **login-service client only**
+Gateway forwards `Idempotency-Key` → gRPC metadata `idempotency-key`. Signup-service owns the replay store (Flyway `V2__signup_idempotency.sql`). Same key + fingerprint → same 201 body; same key + different body → `IDEMPOTENCY_KEY_BODY_MISMATCH`.
 
-### 6.2 `auth.login.v1.LoginService`
+### 4.3 `POST /v1/auth/login` → **200**
 
-- `Login(email, password) → (access_token, refresh_token, token_type, expires_in)`
-- `Refresh(refresh_token) → same shape`
+Body: email + password (max 128). No Idempotency-Key.  
+Response: `TokenResponse` `{ accessToken, refreshToken, tokenType:"Bearer", expiresIn }`.  
+401: `INVALID_CREDENTIALS`.
 
-`token_type` constant in domain: `"Bearer"` (`LoginService.TOKEN_TYPE`).
+### 4.4 `POST /v1/auth/refresh` → **200**
 
----
-
-## 7. Domain behavior
-
-### 7.1 Signup (`SignupService`)
-
-1. Trim email; lower-case with `Locale.ROOT`; regex validate.
-2. Password length 8–128.
-3. `existsByEmail` → `EMAIL_TAKEN`.
-4. Generate UUID; BCrypt hash; `created_at = clock.instant()`; save.
-
-### 7.2 VerifyCredentials (`VerifyCredentialsService`) — Sentinel
-
-- Even when the user is missing, run `matches()` against a **dummy BCrypt** hash (timing).
-- Missing or mismatch → single error: `INVALID_CREDENTIALS` (no email enumeration).
-
-### 7.3 Login (`LoginService`)
-
-1. CredentialVerifier (gRPC → signup); absent → 401.
-2. Issue access JWT.
-3. Generate opaque refresh (32 bytes, URL-safe Base64); store **SHA-256 hex** hash only.
-4. Raw refresh appears only in the response.
-
-### 7.4 Refresh (`RefreshService`) — rotation + reuse detection
-
-1. Raw token → hash → lookup.
-2. Missing / expired / inactive → 401.
-3. If **already revoked**: `revokeAllForUser(userId)` (theft path) → 401.
-4. Atomic `claimActive(hash, now)`; failure → 401.
-5. Issue a new token pair (`issueTokens`).
-
-### 7.5 JWT (`JwtAccessTokenIssuer`)
-
-- HMAC key = `JWT_SECRET` UTF-8 (must be ≥ 32 chars; boot fails otherwise)
-- Claims: `sub` = userId, `email`, `typ=access`, `iat`, `exp`
-- Default access TTL: **900s**; refresh TTL: **2592000s** (30 days)
+Body: `{ "refreshToken" }`. Rotation.  
+401: `INVALID_REFRESH_TOKEN`.
 
 ---
 
-## 8. Data model
+## 5. gRPC
 
-### 8.1 `signup` DB — `users`
+**auth.signup.v1:** `Register`, `VerifyCredentials`  
+**auth.login.v1:** `Login`, `Refresh`
 
-```sql
-id UUID PK
-email VARCHAR(320) NOT NULL UNIQUE
-password_hash VARCHAR(255) NOT NULL
-created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
-```
-
-Flyway: `V1__users.sql`  
-No cross-service FK. Login copies `user_id` + `email` onto refresh rows.
-
-### 8.2 `login` DB — `refresh_tokens`
-
-```sql
-id UUID PK
-user_id UUID NOT NULL          -- signup id; no FK
-email VARCHAR(320) NOT NULL   -- added in V2
-token_hash VARCHAR(255) UNIQUE
-expires_at TIMESTAMPTZ
-revoked_at TIMESTAMPTZ NULL
-created_at TIMESTAMPTZ
-INDEX (user_id)
-```
-
-Flyway: `V1__refresh_tokens.sql`, `V2__refresh_token_email.sql`  
-Raw refresh is **never** stored.
+Errors: `Status` + `google.rpc.ErrorInfo{ reason=CODE, domain=auth.signup|auth.login }`.  
+Clients: `default.load-balancing-policy: round_robin` (gateway + login→signup).
 
 ---
 
-## 9. Compose / operations (Harbor)
+## 6. Domain notes
 
-Services: `signup-db`, `login-db`, `signup-service`, `login-service`, `api-gateway`  
-Network: `auth_net`  
-Volumes: `signup-db-data`, `login-db-data` (`down` keeps volumes)
+- Signup: normalize email; BCrypt; unique email; unique-violation → `EMAIL_TAKEN`.
+- VerifyCredentials: dummy BCrypt on miss (timing).
+- Login: verify via signup gRPC; JWT access (`sub`, `email`, `typ=access`); opaque refresh SHA-256 stored; rotation + reuse → revoke-all.
+- `DomainException` carries reason only (no HTTP status/title in domain).
 
-Startup order:
+---
 
-1. DB healthy (`pg_isready`)
-2. signup healthy (TCP `:9090`)
-3. login (signup + login-db healthy)
-4. gateway (both gRPC healthy)
-5. Gateway health: HTTP against signup path expecting 400/405/415 band
+## 7. Data model
 
-Commands:
+**signup `users`:** id, email UNIQUE, password_hash, created_at  
+**signup idempotency:** key, request_hash, user_id, email, created_at  
+**login `refresh_tokens`:** id, user_id, email, token_hash UNIQUE, expires_at, revoked_at, created_at  
+
+No cross-service FKs.
+
+---
+
+## 8. Compose / Harbor
+
+- Images: `postgres:18`; Dockerfiles start with `# syntax=docker/dockerfile:1`; Temurin 25.
+- Publish gateway only; gRPC 9090 private.
+- App services: **no** `container_name` (scale-safe). DBs may keep names.
+- Env: `REPLICAS_GATEWAY=1` (must stay 1), `REPLICAS_SIGNUP_SERVICE`, `REPLICAS_LOGIN_SERVICE`.
+- Make: `--scale` signup/login; wait on `GET /ready`; smoke host `:9090` closed + signup→login→refresh.
+- Process listen: gateway `HTTP_PORT=8080` in container; host map `${HTTP_PORT:-8080}:8080`.
 
 ```bash
-cp .env.example .env   # JWT_SECRET ≥32, DB passwords
-make full-up           # build + up + wait + smoke
-make down              # volumes kept
-make down-clean        # prune local images
-make smoke
+cp .env.example .env
+make full-up
 ```
-
-Smoke asserts:
-
-1. Host `:9090` closed
-2. signup 201 → login 200 → refresh 200
-
-Env summary: `HTTP_PORT`, `SIGNUP_DB_*`, `LOGIN_DB_*`, `JWT_SECRET`, TTLs, `SIGNUP_GRPC_TARGET` / `LOGIN_GRPC_TARGET` (`static://service:9090`).
 
 ---
 
-## 10. Tests
+## 9. Tests
 
 ```bash
-mvn -q test
+mvn -q test   # 42 green (signup 18 + login 15 + gateway 9) as of b478ae2
 ```
 
-Expected: **36** green (signup ~15, login ~15, gateway ~6).  
-Repository slice tests use **Flyway + H2** (`db/migration-h2`). Production dialect remains PostgreSQL.
+Repository tests: Flyway + H2. Production dialect: PostgreSQL. Maven ≥ 3.9.11.
 
 ---
 
-## 11. Security summary (Sentinel)
+## 10. Observability (current)
 
-| Topic | Decision |
-|-------|----------|
-| Public surface | Gateway HTTP only |
-| gRPC | Private network; `INTERNAL_API_KEY` removed |
-| Passwords | BCrypt; no plaintext logs |
-| Refresh | Opaque + SHA-256; rotation; reuse → revoke-all |
-| Timing | Dummy bcrypt on verify miss path |
-| Error leakage | Stack / binding / exception name off |
-| Secrets | `.env` only; never commit or paste real secrets |
-| Unknown JSON | Rejected |
+- Gateway: Micrometer/OTel starter present; OTLP export off locally.
+- Logs/MDC: `trace_id` / `span_id` / `code` on error paths.
+- Public probes: `/ready`, `/health` on gateway only — do not scrape `:9090`.
 
 ---
 
-## 12. Developer checklist (new feature)
+## 11. Security summary
 
-1. Contract change → update `auth-proto` (+ Relay field rules) first.
-2. Business rule → owning service `domain/usecase`; do not put it in the gateway.
-3. Schema → new Flyway SQL; never invent tables via `ddl-auto`.
-4. Public path → `/v1/...`; error `code` is a string.
-5. gRPC default port `9090`; do not publish to host.
-6. Add/adjust tests; run smoke when Compose is available.
-7. Never put secrets in PRs or chat.
+Public surface = gateway HTTP only. Refresh hashed + rotated. Dummy bcrypt on miss. No secrets in images. Signup race unique → `EMAIL_TAKEN`. Rate limit / mTLS not in this reference.
 
 ---
 
-## 13. Quick curl examples
+## 12. Developer checklist
+
+1. Contract change → Relay freeze first (`code` == ErrorInfo.reason).
+2. Business rule → owning service domain; gateway maps only.
+3. Schema → Flyway SQL; never ddl-auto create/update.
+4. Creating POST → Idempotency-Key + store in owning service.
+5. Errors → ErrorInfo + problem members including `trace_id` and type URI.
+6. gRPC clients → round_robin; `GRPC_PORT=9090` unpublished.
+7. Scale → `REPLICAS_*` + compose `--scale`; never freeze counts in code.
+8. Tests + smoke; no secrets in chat/git.
+
+---
+
+## 13. Curl
 
 ```bash
 curl -s -X POST http://127.0.0.1:8080/v1/auth/signup \
   -H 'Content-Type: application/json' \
+  -H 'Idempotency-Key: demo-1' \
   -d '{"email":"dev@example.com","password":"Password123!"}'
 
 curl -s -X POST http://127.0.0.1:8080/v1/auth/login \
   -H 'Content-Type: application/json' \
   -d '{"email":"dev@example.com","password":"Password123!"}'
+
+curl -fsS http://127.0.0.1:8080/ready
 ```
 
 ---
 
 ## 14. One-line summary
 
-This repository is a tested reference for **client → Spring API gateway → gRPC signup/login → separate Postgres**, with folders and ports fixed to that law.
+Client → Spring API gateway → gRPC signup/login → separate Postgres, with RFC 9457 + ErrorInfo + signup Idempotency-Key + REPLICAS_* fleet — team-law reference implementation.
