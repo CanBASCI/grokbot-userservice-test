@@ -2,7 +2,7 @@
 
 **Repo:** `CanBASCI/grokbot-userservice-test` (`/workspace/grokbot-auth`)  
 **Base:** `d0acaa0`  
-**SHA:** _(filled after push)_  
+**SHA:** 
 **Tarih (TR / Europe/Istanbul):** 2026-09-16  
 
 ## Özet
