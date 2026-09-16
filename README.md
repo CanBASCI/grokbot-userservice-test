@@ -104,9 +104,12 @@ Publish **only** `api-gateway` on host `${HTTP_PORT:-8080}`. Private: `signup-se
 
 Requires **Maven ≥ 3.9.11** inside the image build (protobuf plugin).
 
+Scale via env (default 1). Never set `REPLICAS_GATEWAY` above 1 without an LB on host `:8080`.
+
 ```bash
-cp .env.example .env   # set JWT_SECRET (≥32) and DB passwords
+cp .env.example .env   # set JWT_SECRET (≥32), DB passwords, REPLICAS_*
 make full-up
+# example: REPLICAS_SIGNUP_SERVICE=2 REPLICAS_LOGIN_SERVICE=2 make up
 # tear down (volumes kept):
 make down
 # also drop local app images:

@@ -18,6 +18,11 @@ else
   echo "nc not found; skip host gRPC bind check"
 fi
 
+echo "== GET ${BASE_URL}/ready =="
+ready_code=$(curl -s -o /tmp/auth-ready.json -w "%{http_code}" "${BASE_URL}/ready")
+test "${ready_code}" = "200"
+grep -q '"status"[[:space:]]*:[[:space:]]*"UP"' /tmp/auth-ready.json
+
 echo "== POST ${BASE_URL}/v1/auth/signup =="
 signup_code=$(curl -s -o /tmp/auth-signup.json -w "%{http_code}" \
   -X POST "${BASE_URL}/v1/auth/signup" \
@@ -50,4 +55,4 @@ echo "refresh HTTP ${refresh_code}"
 test "${refresh_code}" = "200"
 grep -q '"accessToken"' /tmp/auth-refresh.json
 
-echo "smoke OK (gateway signup → login → refresh; gRPC not on host)"
+echo "smoke OK (ready + signup → login → refresh; gRPC not on host)"
